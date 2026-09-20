@@ -125,6 +125,9 @@ def test_linux_uses_certificate_and_direct_tcpip(
     )
     assert target.connect.call_args.kwargs["sock"] is channel
     bastion.load_system_host_keys.assert_called_once_with()
+    bastion.load_host_keys.assert_called_once_with(
+        str(Path.home() / ".tsh" / "known_hosts")
+    )
     assert isinstance(
         bastion.set_missing_host_key_policy.call_args.args[0], paramiko.RejectPolicy
     )
@@ -138,6 +141,68 @@ def test_linux_uses_certificate_and_direct_tcpip(
     assert channel.close.call_count == 1
     assert bastion.close.call_count == 1
     assert proxy.close.call_count == 1
+
+
+@patch("orbitflow.transport.linux.Path.home")
+@patch("orbitflow.transport.linux.paramiko.ProxyCommand")
+@patch("orbitflow.transport.linux.paramiko.PKey.from_path")
+@patch("orbitflow.transport.linux.paramiko.SSHClient")
+def test_linux_loads_teleport_known_hosts_for_strict_bastion_verification(
+    ssh_client,
+    _from_path,
+    _proxy_command,
+    home,
+    tmp_path,
+    credentials,
+    config,
+):
+    home.return_value = tmp_path
+    teleport_known_hosts = tmp_path / ".tsh" / "known_hosts"
+    teleport_known_hosts.parent.mkdir()
+    teleport_known_hosts.touch()
+    bastion, target = MagicMock(), MagicMock()
+    ssh_client.side_effect = [bastion, target]
+    bastion.get_transport.return_value.is_active.return_value = True
+
+    session = connect_linux("192.0.2.10", credentials, config)
+
+    bastion.load_system_host_keys.assert_called_once_with()
+    bastion.load_host_keys.assert_called_once_with(str(teleport_known_hosts))
+    assert isinstance(
+        bastion.set_missing_host_key_policy.call_args.args[0], paramiko.RejectPolicy
+    )
+    session.close()
+
+
+@patch("orbitflow.transport.linux.Path.home")
+@patch("orbitflow.transport.linux.paramiko.ProxyCommand")
+@patch("orbitflow.transport.linux.paramiko.PKey.from_path")
+@patch("orbitflow.transport.linux.paramiko.SSHClient")
+def test_linux_allows_missing_teleport_known_hosts_in_strict_mode(
+    ssh_client,
+    _from_path,
+    _proxy_command,
+    home,
+    tmp_path,
+    credentials,
+    config,
+):
+    home.return_value = tmp_path
+    bastion, target = MagicMock(), MagicMock()
+    ssh_client.side_effect = [bastion, target]
+    bastion.load_host_keys.side_effect = FileNotFoundError
+    bastion.get_transport.return_value.is_active.return_value = True
+
+    session = connect_linux("192.0.2.10", credentials, config)
+
+    bastion.load_system_host_keys.assert_called_once_with()
+    bastion.load_host_keys.assert_called_once_with(
+        str(tmp_path / ".tsh" / "known_hosts")
+    )
+    assert isinstance(
+        bastion.set_missing_host_key_policy.call_args.args[0], paramiko.RejectPolicy
+    )
+    session.close()
 
 
 @patch("orbitflow.transport.windows._wait_for_tunnel")

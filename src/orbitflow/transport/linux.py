@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shlex
 import shutil
+from pathlib import Path
 from typing import Any
 
 import paramiko
@@ -32,6 +33,17 @@ def _close_all(*resources: Any | None) -> None:
             first_error = first_error or exc
     if first_error is not None:
         raise first_error
+
+
+def _load_bastion_host_keys(client: paramiko.SSHClient) -> None:
+    """Load system and Teleport-managed host keys for strict bastion checks."""
+    client.load_system_host_keys()
+    teleport_known_hosts = Path.home() / ".tsh" / "known_hosts"
+    try:
+        client.load_host_keys(str(teleport_known_hosts))
+    except FileNotFoundError:
+        # A fresh tsh profile may not have created this optional file yet.
+        pass
 
 
 def connect_linux(
@@ -66,7 +78,7 @@ def connect_linux(
         proxy = paramiko.ProxyCommand(command)
         bastion = paramiko.SSHClient()
         if config.verify_bastion_host_key:
-            bastion.load_system_host_keys()
+            _load_bastion_host_keys(bastion)
             bastion.set_missing_host_key_policy(paramiko.RejectPolicy())
         else:
             bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())

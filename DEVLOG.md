@@ -43,6 +43,34 @@ Use this file as the durable record of meaningful repository changes.
 - Both validated paths can establish an interactive Cisco CLI session, dynamically detect the prompt, disable paging, run `show version`, and return cleaned command output.
 - Detailed transport rules are maintained in `.agents/skills/jumphost-connectivity/SKILL.md`.
 
+### 2026-09-20 — Linux Teleport bastion host-key loading
+
+**Objective**
+- Make strict Linux bastion verification recognize the host keys maintained by Teleport.
+
+**Prompt / Request**
+- Load `~/.tsh/known_hosts` in addition to system host keys without changing Windows, target-device verification, or the validated Teleport transport architecture.
+
+**Relevant skills**
+- `.agents/skills/jumphost-connectivity/SKILL.md`
+
+**Files changed**
+- `src/orbitflow/transport/linux.py`, `tests/test_transport.py`, `README.md`, `DEVLOG.md`
+
+**Implementation**
+- Linux live validation found that `tsh` stored the trusted bastion host key in `~/.tsh/known_hosts`, while strict Paramiko verification loaded only normal system host keys.
+- Strict Linux bastion setup now loads both sources and preserves `RejectPolicy`; a missing Teleport known-hosts file is treated as optional.
+- Windows behavior, target-device host-key behavior, and the `tsh proxy ssh` plus `direct-tcpip` path are unchanged.
+
+**Validation / Tests**
+- Added mocked tests for loading Teleport's known-hosts path and tolerating a missing file while remaining in strict mode.
+
+**Known issues / Limitations**
+- This change is unit-tested without contacting a live Teleport cluster.
+
+**Next step**
+- Re-run Linux live validation with an authenticated operator profile in the deployment environment.
+
 ### 2026-09-20 — Configurable SSH host-key verification
 
 **Objective**

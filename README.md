@@ -64,12 +64,16 @@ in reverse dependency order.
 
 Host-key verification is independently configurable for the Linux bastion and
 the target device. `verify_bastion_host_key=True` (the default) loads the
-operator's system `known_hosts` and rejects an unknown bastion key. Both Windows
-and Linux use `verify_device_host_key`, which defaults to `False` so unknown
-target keys are accepted without a `known_hosts` entry. Set it to `True` to load
-the system host keys and reject unknown target keys. Disabling either check
-trades protection against machine-in-the-middle attacks for compatibility; use
-strict verification wherever trusted host keys can be provisioned.
+operator's system host keys plus Teleport's `~/.tsh/known_hosts` when present,
+then rejects an unknown bastion key. Linux live validation found that Teleport
+records the trusted bastion key in its own known-hosts file rather than the
+normal system file. A missing Teleport file is tolerated so system host keys can
+still be used, and strict mode continues to use Paramiko's `RejectPolicy`. Both
+Windows and Linux use `verify_device_host_key`, which defaults to `False` so
+unknown target keys are accepted without a `known_hosts` entry. Set it to `True`
+to load the system host keys and reject unknown target keys. Disabling either
+check trades protection against machine-in-the-middle attacks for compatibility;
+use strict verification wherever trusted host keys can be provisioned.
 
 The caller is responsible for obtaining target credentials from an approved
 secret provider and for discovering the active Teleport identity paths. Passwords,
