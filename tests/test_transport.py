@@ -7,6 +7,7 @@ import paramiko
 import pytest
 
 from orbitflow.transport import (
+    DeviceConnectionError,
     DeviceCredentials,
     TransportConfig,
     TransportConfigurationError,
@@ -328,5 +329,66 @@ def test_linux_reports_bastion_failure_as_teleport_error(
         connect_linux("192.0.2.10", credentials, config)
 
     assert "authentication failed" not in str(error.value)
+    bastion.close.assert_called_once_with()
+    proxy_command.return_value.close.assert_called_once_with()
+
+
+@patch("orbitflow.transport.windows._wait_for_tunnel")
+@patch("orbitflow.transport.windows.socket.create_connection")
+@patch("orbitflow.transport.windows._free_local_port", return_value=49152)
+@patch("orbitflow.transport.windows.subprocess.Popen")
+@patch("orbitflow.transport.windows.paramiko.SSHClient")
+def test_windows_cleans_up_after_target_authentication_failure(
+    ssh_client,
+    popen,
+    _free_port,
+    create_connection,
+    _wait_for_tunnel,
+    credentials,
+    config,
+):
+    process = popen.return_value
+    process.poll.return_value = None
+    client = ssh_client.return_value
+    client.connect.side_effect = paramiko.AuthenticationException("rejected")
+    client.get_transport.return_value.is_active.return_value = True
+    client.get_transport.return_value.auth_interactive.side_effect = (
+        paramiko.AuthenticationException("interactive rejected")
+    )
+
+    with pytest.raises(
+        DeviceConnectionError, match="failed to connect to target device"
+    ):
+        connect_windows("192.0.2.10", credentials, config)
+
+    client.close.assert_called_once_with()
+    create_connection.return_value.close.assert_called_once_with()
+    process.terminate.assert_called_once_with()
+
+
+@patch("orbitflow.transport.linux.paramiko.ProxyCommand")
+@patch("orbitflow.transport.linux.paramiko.PKey.from_path")
+@patch("orbitflow.transport.linux.paramiko.SSHClient")
+def test_linux_cleans_up_after_target_authentication_failure(
+    ssh_client, _from_path, proxy_command, credentials, config
+):
+    bastion, target = MagicMock(), MagicMock()
+    ssh_client.side_effect = [bastion, target]
+    transport = bastion.get_transport.return_value
+    transport.is_active.return_value = True
+    channel = transport.open_channel.return_value
+    target.connect.side_effect = paramiko.AuthenticationException("rejected")
+    target.get_transport.return_value.is_active.return_value = True
+    target.get_transport.return_value.auth_interactive.side_effect = (
+        paramiko.AuthenticationException("interactive rejected")
+    )
+
+    with pytest.raises(
+        DeviceConnectionError, match="failed to connect to target device"
+    ):
+        connect_linux("192.0.2.10", credentials, config)
+
+    target.close.assert_called_once_with()
+    channel.close.assert_called_once_with()
     bastion.close.assert_called_once_with()
     proxy_command.return_value.close.assert_called_once_with()

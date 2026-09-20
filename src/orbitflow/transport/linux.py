@@ -8,6 +8,7 @@ from typing import Any
 
 import paramiko
 
+from .authentication import connect_target
 from .exceptions import (
     DeviceConnectionError,
     TeleportError,
@@ -100,12 +101,11 @@ def connect_linux(
             target.set_missing_host_key_policy(paramiko.RejectPolicy())
         else:
             target.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        target.connect(
+        connect_target(
+            target,
             device_host,
             port=config.device_port,
-            username=credentials.username,
-            password=credentials.password,
-            pkey=credentials.pkey,
+            credentials=credentials,
             sock=channel,
             timeout=config.connect_timeout,
         )

@@ -10,6 +10,7 @@ from typing import Any
 
 import paramiko
 
+from .authentication import connect_target
 from .exceptions import DeviceConnectionError, TeleportError, TunnelError
 from .models import DeviceCredentials, DeviceSession, TransportConfig
 
@@ -116,12 +117,11 @@ def connect_windows(
         forwarded_socket = socket.create_connection(
             ("127.0.0.1", local_port), timeout=config.connect_timeout
         )
-        client.connect(
+        connect_target(
+            client,
             device_host,
             port=config.device_port,
-            username=credentials.username,
-            password=credentials.password,
-            pkey=credentials.pkey,
+            credentials=credentials,
             sock=forwarded_socket,
             timeout=config.connect_timeout,
         )
