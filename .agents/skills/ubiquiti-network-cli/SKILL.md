@@ -20,14 +20,11 @@ Do not add UISP API behaviour to this skill unless a future explicit task expand
 Primary baseline:
 
 ```text
-show interfaces status
+terminal length 0
+show interfaces status all
 ```
 
-Optional fallback where firmware supports it:
-
-```text
-show interfaces description
-```
+Do not use `show interfaces description` or guess a fallback command.
 
 Mapping guidance:
 - interface `Name`, if present -> Port Description;
@@ -53,7 +50,7 @@ Pre/post checks may include:
 
 ```text
 show running-config interface <Port Name>
-show interfaces status
+show interfaces status all
 show vlan
 ```
 

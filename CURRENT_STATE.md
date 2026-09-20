@@ -109,6 +109,9 @@ the platform's timestamp line before the interface table while remaining strict
 about other unexpected content. `device_name` is optional:
 vendor adapters extract it from their already-detected CLI prompt, while an
 explicit caller-supplied name remains a compatibility override.
+EdgeSwitch uses only `terminal length 0` and `show interfaces status all`; its
+parser supports the confirmed multi-line status header, blank names, short
+rows, and `(hostname) #` prompts while leaving unavailable admin state empty.
 
 `scripts/live_validate_interfaces.py` provides a deliberately limited
 single-device integration entry point for live validation of this existing
@@ -138,7 +141,10 @@ Current major implementation areas:
 
 - Current SSH host-key defaults are permissive and therefore do not provide MITM protection.
 - Inventory and production collection workflows are not yet implemented.
-- Interface collection has not been end-to-end live validated on IOS-XR, Huawei, or EdgeSwitch; untested output variants fail clearly instead of being guessed.
+- Interface collection has not been end-to-end live validated by the automated
+  suite on IOS-XR, Huawei, or EdgeSwitch; EdgeSwitch parsing is covered against
+  confirmed captured live output, and untested output variants fail clearly
+  instead of being guessed.
 - Live-device testing is integration validation and does not replace deterministic unit tests.
 
 ## Current Development Focus

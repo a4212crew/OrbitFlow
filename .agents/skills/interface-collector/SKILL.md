@@ -39,7 +39,7 @@ Do not implement an independent SSH path in collector code.
 | Cisco IOS / IOS-XE | `show interfaces description` |
 | Cisco IOS-XR | `show interfaces description` |
 | Huawei VRP | `display interface brief` and/or `display interface description` |
-| Ubiquiti EdgeSwitch | `show interfaces status`; optional supported fallback `show interfaces description` |
+| Ubiquiti EdgeSwitch | `show interfaces status all` |
 
 Vendor-specific details belong in vendor skills.
 
