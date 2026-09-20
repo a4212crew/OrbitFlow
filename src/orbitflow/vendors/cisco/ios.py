@@ -51,6 +51,13 @@ def clean_output(output: str, command: str, prompt: str) -> str:
     return "\n".join(lines).strip("\n")
 
 
+def _contains_command_echo(output: str, command: str, prompt: str) -> bool:
+    expected_echoes = (command.strip(), f"{prompt}{command}".strip())
+    return any(
+        line.strip() in expected_echoes for line in _normalize(output).split("\n")
+    )
+
+
 class CiscoIOSCLI:
     """An IOS/IOS-XE shell layered on an established OrbitFlow session.
 
@@ -66,7 +73,13 @@ class CiscoIOSCLI:
         _, self.prompt = self._read_until_prompt(timeout)
         self.run_command("terminal length 0", timeout=timeout)
 
-    def _read_until_prompt(self, timeout: float) -> tuple[str, str]:
+    def _read_until_prompt(
+        self,
+        timeout: float,
+        *,
+        command: str | None = None,
+        starting_prompt: str | None = None,
+    ) -> tuple[str, str]:
         if timeout <= 0:
             raise ValueError("timeout must be greater than zero")
         deadline = time.monotonic() + timeout
@@ -92,14 +105,20 @@ class CiscoIOSCLI:
             received.extend(chunk)
             text = received.decode("utf-8", errors="replace")
             prompt = detect_prompt(text)
-            if prompt is not None:
+            command_synchronized = command is None or _contains_command_echo(
+                text, command, starting_prompt or ""
+            )
+            if prompt is not None and command_synchronized:
                 return text, prompt
 
     def run_command(self, command: str, timeout: float = 10.0) -> str:
         """Run one command and return output without its echo or final prompt."""
         if not command or "\n" in command or "\r" in command:
             raise ValueError("command must be one non-empty line")
+        starting_prompt = self.prompt
         self._channel.sendall((command + "\n").encode("utf-8"))
-        output, prompt = self._read_until_prompt(timeout)
+        output, prompt = self._read_until_prompt(
+            timeout, command=command, starting_prompt=starting_prompt
+        )
         self.prompt = prompt
         return clean_output(output, command, prompt)

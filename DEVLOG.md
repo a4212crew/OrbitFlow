@@ -62,9 +62,11 @@ Use this file as the durable record of meaningful repository changes.
 - Added an IOS/IOS-XE-specific interactive CLI that consumes `DeviceSession` without changing transport.
 - Prompt reads use channel timeouts and monotonic deadlines rather than fixed sleeps.
 - Paging is disabled at initialization and command echo, ANSI control sequences, and the trailing prompt are removed from results.
+- Live validation found that a stale prompt could complete a newly sent command before its response arrived; command reads now synchronize on the command echo before accepting the final prompt.
 
 **Validation / Tests**
 - Unit coverage includes `#` and `>` prompt detection, paging setup and command execution, timeout behavior, dynamic prompt changes, and output cleaning.
+- Added regression coverage for a stale prompt arriving before the paging command echo.
 
 **Known issues / Limitations**
 - The implementation is intentionally limited to IOS/IOS-XE; IOS-XR requires a separate CLI implementation.
