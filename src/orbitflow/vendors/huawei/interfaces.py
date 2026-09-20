@@ -46,7 +46,7 @@ _BRIEF_LEGENDS = frozenset(
     }
 )
 _CANONICAL_INTERFACE_NAME = re.compile(
-    r"^(?P<prefix>GigabitEthernet|Ethernet|LoopBack|Loop|GE|Eth)(?P<suffix>\d.*)$",
+    r"^(?P<prefix>GigabitEthernet|Ethernet|LoopBack|Tunnel|Loop|Tun|GE|Eth)(?P<suffix>\d.*)$",
     re.IGNORECASE,
 )
 _CANONICAL_INTERFACE_PREFIXES = {
@@ -56,6 +56,8 @@ _CANONICAL_INTERFACE_PREFIXES = {
     "gigabitethernet": "GigabitEthernet",
     "loop": "LoopBack",
     "loopback": "LoopBack",
+    "tun": "Tunnel",
+    "tunnel": "Tunnel",
 }
 
 

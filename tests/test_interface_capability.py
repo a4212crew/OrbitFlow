@@ -310,7 +310,14 @@ def test_huawei_two_column_collection_joins_approved_brief_status_by_name():
         "Eth0/0/0                    HUAWEI, Ethernet0/0/0 Interface\r\n"
         "GE0/2/4                     Uplink AF60 to T-STKI-ASCEN-RTR1\r\n"
         "GE0/2/8.2434                SUPERLOOP1-PPPOE\r\n"
-        "Loop1                       Local loopback"
+        "Loop1                       Local loopback one\r\n"
+        "Loop100                     Local loopback one hundred\r\n"
+        "Loop828                     Local loopback eight twenty-eight\r\n"
+        "Tun0/0/1                    Service tunnel\r\n"
+        "Tunnel0/0/2                 Full-name tunnel\r\n"
+        "NULL0                       Null interface\r\n"
+        "Vlanif545                   Customer VLAN 545\r\n"
+        "Vlanif745                   Customer VLAN 745"
     )
     brief_output = (
         "PHY: Physical\r\n"
@@ -327,7 +334,13 @@ def test_huawei_two_column_collection_joins_approved_brief_status_by_name():
         "GigabitEthernet0/2/4        down  down     0%    0%     0        0\r\n"
         "GigabitEthernet0/2/8.2434   *down down     --    --     0        0\r\n"
         "LoopBack1                   up    up(s)    0%    0%     0        0\r\n"
-        "NULL0                       up    up(s)    0%    0%     0        0"
+        "LoopBack100                 up    up(s)    0%    0%     0        0\r\n"
+        "LoopBack828                 up    up(s)    0%    0%     0        0\r\n"
+        "Tunnel0/0/1                 up    up       0%    0%     0        0\r\n"
+        "Tunnel0/0/2                 up    up       0%    0%     0        0\r\n"
+        "NULL0                       up    up(s)    0%    0%     0        0\r\n"
+        "Vlanif545                   up    up       0%    0%     0        0\r\n"
+        "Vlanif745                   up    up       0%    0%     0        0"
     )
     prompt = CASES["huawei_vrp"]["prompt"]
     paging = CASES["huawei_vrp"]["paging"]
@@ -350,14 +363,29 @@ def test_huawei_two_column_collection_joins_approved_brief_status_by_name():
         "GE0/2/4",
         "GE0/2/8.2434",
         "Loop1",
+        "Loop100",
+        "Loop828",
+        "Tun0/0/1",
+        "Tunnel0/0/2",
+        "NULL0",
+        "Vlanif545",
+        "Vlanif745",
     ]
     assert [(item.admin_status, item.oper_status) for item in records] == [
         ("up", "up"),
         ("up", "down"),
         ("down", "down"),
         ("up", "up"),
+        ("up", "up"),
+        ("up", "up"),
+        ("up", "up"),
+        ("up", "up"),
+        ("up", "up"),
+        ("up", "up"),
+        ("up", "up"),
     ]
-    assert records[-1].port_description == "Local loopback"
+    assert records[2].port_name == "GE0/2/8.2434"
+    assert records[3].port_description == "Local loopback one"
     assert channel.sent == [
         b"\n",
         b"screen-length 0 temporary\n",
