@@ -43,6 +43,8 @@ config = TransportConfig(
     # Required on Linux; discover these from the active tsh profile.
     teleport_key_path=Path("/path/from/active/tsh/profile/key"),
     teleport_cert_path=Path("/path/from/active/tsh/profile/key-cert.pub"),
+    verify_bastion_host_key=True,  # Linux bastion; strict by default.
+    verify_device_host_key=False,  # Target device; permissive by default.
 )
 
 with connect_device(
@@ -58,8 +60,16 @@ forward while retaining the device address for SSH host-key verification. On
 Linux, it starts `tsh proxy ssh`, authenticates the bastion using the
 provided Teleport private key and certificate, opens a Paramiko `direct-tcpip`
 channel, and connects the target client over that channel. Resources are closed
-in reverse dependency order. SSH host keys must already exist in the operator's
-system known-hosts file; unknown host keys are rejected.
+in reverse dependency order.
+
+Host-key verification is independently configurable for the Linux bastion and
+the target device. `verify_bastion_host_key=True` (the default) loads the
+operator's system `known_hosts` and rejects an unknown bastion key. Both Windows
+and Linux use `verify_device_host_key`, which defaults to `False` so unknown
+target keys are accepted without a `known_hosts` entry. Set it to `True` to load
+the system host keys and reject unknown target keys. Disabling either check
+trades protection against machine-in-the-middle attacks for compatibility; use
+strict verification wherever trusted host keys can be provisioned.
 
 The caller is responsible for obtaining target credentials from an approved
 secret provider and for discovering the active Teleport identity paths. Passwords,
