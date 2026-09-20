@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 
 from orbitflow.transport import DeviceSession
-from orbitflow.vendors.interface_types import InterfaceObservation
+from orbitflow.vendors.interface_types import InterfaceCollection, InterfaceObservation
 
-from .ios import CiscoIOSCLI
+from .ios import CiscoIOSCLI, extract_ios_hostname
 
 _ROW = re.compile(
     r"^(?P<port>\S+)\s{2,}(?P<status>.+?)\s{2,}(?P<protocol>\S+)"
@@ -21,6 +21,14 @@ _REJECTED = re.compile(
 
 class CiscoXRCLI(CiscoIOSCLI):
     """IOS-XR shell kept distinct while using its approved Cisco interaction."""
+
+
+def extract_ios_xr_hostname(prompt: str) -> str:
+    """Extract an IOS-XR hostname from an ``RP/...:hostname#`` prompt."""
+    match = re.fullmatch(r"RP/[^:\r\n]+:(?P<hostname>[^:#>\s]+)#", prompt.strip())
+    if match is None:
+        raise ValueError(f"unrecognized IOS-XR prompt: {prompt!r}")
+    return match.group("hostname")
 
 
 def _state(value: str) -> str:
@@ -72,19 +80,24 @@ class CiscoInterfaceAdapter:
         self._session = session
         self._timeout = timeout
 
-    def collect(self) -> list[InterfaceObservation]:
+    def collect(self) -> InterfaceCollection:
         cli = self.cli_type(self._session, timeout=self._timeout)
         output = cli.run_command("show interfaces description", timeout=self._timeout)
         if _REJECTED.search(output):
             raise ValueError(
                 "Cisco rejected approved command 'show interfaces description'"
             )
-        return parse_interfaces_description(output)
+        return InterfaceCollection(
+            device_name=self.extract_hostname(cli.prompt),
+            observations=parse_interfaces_description(output),
+        )
 
     cli_type = CiscoIOSCLI
+    extract_hostname = staticmethod(extract_ios_hostname)
 
 
 class CiscoXRInterfaceAdapter(CiscoInterfaceAdapter):
     """IOS-XR-specific adapter, independently selectable by the service."""
 
     cli_type = CiscoXRCLI
+    extract_hostname = staticmethod(extract_ios_xr_hostname)

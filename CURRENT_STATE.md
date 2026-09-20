@@ -87,7 +87,9 @@ platform has an isolated command/parser adapter, uses `DeviceSession`, disables
 paging with the approved platform command, and returns a clear error for a
 rejected setup or collection command. Empty command output produces an empty
 collection; unrecognized non-empty output is a parser failure. The capability
-does not guess fallback commands after a rejection.
+does not guess fallback commands after a rejection. `device_name` is optional:
+vendor adapters extract it from their already-detected CLI prompt, while an
+explicit caller-supplied name remains a compatibility override.
 
 `scripts/live_validate_interfaces.py` provides a deliberately limited
 single-device integration entry point for live validation of this existing

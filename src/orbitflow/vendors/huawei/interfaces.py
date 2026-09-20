@@ -6,7 +6,7 @@ import re
 
 from orbitflow.transport import DeviceSession
 from orbitflow.vendors.common import PromptCLI
-from orbitflow.vendors.interface_types import InterfaceObservation
+from orbitflow.vendors.interface_types import InterfaceCollection, InterfaceObservation
 
 _REJECTED = re.compile(
     r"(?:Error:|Unrecognized command|Wrong parameter|Too many parameters|Incomplete command)",
@@ -16,6 +16,16 @@ _ROW = re.compile(
     r"^(?P<port>\S+)\s+(?P<phy>\*?(?:up|down))\s+(?P<protocol>up|down)(?:\s+(?P<description>.*))?$",
     re.IGNORECASE,
 )
+
+
+def extract_huawei_hostname(prompt: str) -> str:
+    """Extract the hostname from a VRP user or system-view prompt."""
+    match = re.fullmatch(
+        r"(?:<(?P<user>[^<>]+)>|\[(?P<system>[^\[\]]+)\])", prompt.strip()
+    )
+    if match is None:
+        raise ValueError(f"unrecognized Huawei VRP prompt: {prompt!r}")
+    return match.group("user") or match.group("system")
 
 
 def parse_interface_description(output: str) -> list[InterfaceObservation]:
@@ -55,7 +65,7 @@ class HuaweiInterfaceAdapter:
         self._session = session
         self._timeout = timeout
 
-    def collect(self) -> list[InterfaceObservation]:
+    def collect(self) -> InterfaceCollection:
         cli = PromptCLI(
             self._session,
             paging_command="screen-length 0 temporary",
@@ -69,4 +79,7 @@ class HuaweiInterfaceAdapter:
             raise ValueError(
                 "Huawei VRP rejected approved command 'display interface description'"
             )
-        return parse_interface_description(output)
+        return InterfaceCollection(
+            device_name=extract_huawei_hostname(cli.prompt),
+            observations=parse_interface_description(output),
+        )
