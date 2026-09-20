@@ -31,7 +31,8 @@ def _stop_process(process: Any) -> None:
             process.wait(timeout=5)
 
 
-def _wait_for_tunnel(process: Any, port: int, timeout: float) -> None:
+def _open_forwarded_socket(process: Any, port: int, timeout: float) -> socket.socket:
+    """Wait for the local forward and return its first connected socket."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if process.poll() is not None:
@@ -40,33 +41,20 @@ def _wait_for_tunnel(process: Any, port: int, timeout: float) -> None:
             )
         try:
             remaining = max(0.001, deadline - time.monotonic())
-            with socket.create_connection(
+            forwarded_socket = socket.create_connection(
                 ("127.0.0.1", port), timeout=min(0.2, remaining)
-            ) as probe:
-                pending = bytearray()
-                while time.monotonic() < deadline:
-                    if process.poll() is not None:
-                        raise TunnelError(
-                            "tsh local forwarding process exited before becoming ready"
-                        )
-                    remaining = max(0.001, deadline - time.monotonic())
-                    probe.settimeout(min(0.2, remaining))
-                    try:
-                        chunk = probe.recv(255)
-                    except socket.timeout:
-                        continue
-                    if not chunk:
-                        break
-                    pending.extend(chunk)
-                    while b"\n" in pending:
-                        line, _, remainder = pending.partition(b"\n")
-                        pending = bytearray(remainder)
-                        if line.rstrip(b"\r").startswith((b"SSH-2.0-", b"SSH-1.99-")):
-                            return
+            )
         except OSError:
             pass
+        else:
+            if process.poll() is None:
+                return forwarded_socket
+            forwarded_socket.close()
+            raise TunnelError(
+                "tsh local forwarding process exited before becoming ready"
+            )
         if time.monotonic() < deadline:
-            time.sleep(0.1)
+            time.sleep(min(0.1, max(0.0, deadline - time.monotonic())))
     raise TunnelError("timed out waiting for the tsh local forwarding port")
 
 
@@ -111,12 +99,13 @@ def connect_windows(
     else:
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        _wait_for_tunnel(process, local_port, config.connect_timeout)
+        # This first successful forward connection is retained for Paramiko.
+        # Reading its SSH banner here would consume protocol data Paramiko owns.
+        forwarded_socket = _open_forwarded_socket(
+            process, local_port, config.connect_timeout
+        )
         # Keep the real device hostname as Paramiko's host-key lookup key while
         # sending traffic through the loopback forward.
-        forwarded_socket = socket.create_connection(
-            ("127.0.0.1", local_port), timeout=config.connect_timeout
-        )
         connect_target(
             client,
             device_host,

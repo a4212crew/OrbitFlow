@@ -84,8 +84,10 @@ Operational sequence:
 1. Detect Windows.
 2. Locate `tsh` using PATH.
 3. Start `tsh ssh -N -L`.
-4. Wait until the local TCP port accepts connections.
-5. Paramiko connects to the forwarded port using target-device credentials.
+4. Retry opening the local-forward socket until it connects or the configured
+   timeout expires; fail immediately if `tsh` exits.
+5. Pass that same connected socket directly to Paramiko using target-device
+   credentials. Do not read the SSH banner or discard a readiness connection.
 6. Open the interactive network CLI.
 7. Run task logic.
 8. Close Paramiko.
