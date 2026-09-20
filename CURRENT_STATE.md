@@ -95,7 +95,15 @@ platform has an isolated command/parser adapter, uses `DeviceSession`, disables
 paging with the approved platform command, and returns a clear error for a
 rejected setup or collection command. Empty command output produces an empty
 collection; unrecognized non-empty output is a parser failure. The capability
-does not guess fallback commands after a rejection. The IOS-XR parser accepts
+does not guess fallback commands after a rejection. Huawei accepts both the
+status-bearing and description-only forms of `display interface description`;
+for the description-only form it uses the approved `display interface brief`
+fallback and joins status by Huawei-canonical interface name (`Eth`/`Ethernet`
+and `GE`/`GigabitEthernet`), while preserving the description-side name and
+subinterface suffix in normalized output. Known VRP brief legends and protocol
+suffixes such as `up(s)` are accepted; PHY remains authoritative for normalized
+status. The
+IOS-XR parser accepts
 the platform's timestamp line before the interface table while remaining strict
 about other unexpected content. `device_name` is optional:
 vendor adapters extract it from their already-detected CLI prompt, while an
@@ -129,7 +137,7 @@ Current major implementation areas:
 
 - Current SSH host-key defaults are permissive and therefore do not provide MITM protection.
 - Inventory and production collection workflows are not yet implemented.
-- Interface collection has not been live validated on IOS-XR, Huawei, or EdgeSwitch; untested output variants fail clearly instead of being guessed.
+- Interface collection has not been end-to-end live validated on IOS-XR, Huawei, or EdgeSwitch; untested output variants fail clearly instead of being guessed.
 - Live-device testing is integration validation and does not replace deterministic unit tests.
 
 ## Current Development Focus
