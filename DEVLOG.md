@@ -43,6 +43,37 @@ Use this file as the durable record of meaningful repository changes.
 - Both validated paths can establish an interactive Cisco CLI session, dynamically detect the prompt, disable paging, run `show version`, and return cleaned command output.
 - Detailed transport rules are maintained in `.agents/skills/jumphost-connectivity/SKILL.md`.
 
+### 2026-09-20 — Standardized permissive host-key defaults
+
+**Objective**
+- Standardize the validated Windows and Linux behavior while retaining configurable strict verification.
+
+**Prompt / Request**
+- Default bastion and target-device verification to permissive handling, remove Teleport-specific known-host loading, and do not implement custom Teleport CA verification.
+
+**Relevant skills**
+- `.agents/skills/jumphost-connectivity/SKILL.md`
+
+**Files changed**
+- `src/orbitflow/transport/models.py`, `src/orbitflow/transport/linux.py`
+- `tests/test_transport.py`, `README.md`, `DEVLOG.md`
+
+**Implementation**
+- Both `verify_bastion_host_key` and `verify_device_host_key` now default to `False`, using Paramiko's permissive `AutoAddPolicy` without persisting learned keys.
+- Removed the attempted `~/.tsh/known_hosts` loading; no custom Teleport CA verification is implemented.
+- Configurable strict mode remains available and loads normal system host keys with `RejectPolicy`.
+- The Windows local-forward architecture and Linux `tsh proxy ssh` plus `direct-tcpip` architecture are unchanged.
+
+**Validation / Tests**
+- Windows and Linux live validation succeeded using permissive host-key handling.
+- Added mocked coverage for permissive defaults and the retained Linux strict bastion mode.
+
+**Known issues / Limitations**
+- Permissive verification does not protect against machine-in-the-middle attacks.
+
+**Next step**
+- Provision trusted system host keys and enable strict verification where operationally practical.
+
 ### 2026-09-20 — Configurable SSH host-key verification
 
 **Objective**
@@ -59,9 +90,9 @@ Use this file as the durable record of meaningful repository changes.
 - `tests/test_transport.py`, `README.md`, `DEVLOG.md`
 
 **Implementation**
-- Added strict-by-default Linux bastion verification and permissive-by-default target-device verification settings.
+- Added independently configurable Linux bastion and target-device verification settings.
 - Both Windows and Linux target connections honor the device setting without changing either validated Teleport path.
-- Strict mode loads system host keys and rejects unknown keys; permissive mode accepts unknown keys without loading `known_hosts`.
+- Strict mode loads system host keys and rejects unknown keys; permissive mode accepts unknown keys without loading `known_hosts`. Both settings now default to permissive handling as recorded above.
 
 **Validation / Tests**
 - Added mocked coverage for enabled and disabled verification on the Linux bastion and on Windows/Linux target devices.

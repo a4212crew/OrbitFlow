@@ -43,7 +43,7 @@ config = TransportConfig(
     # Required on Linux; discover these from the active tsh profile.
     teleport_key_path=Path("/path/from/active/tsh/profile/key"),
     teleport_cert_path=Path("/path/from/active/tsh/profile/key-cert.pub"),
-    verify_bastion_host_key=True,  # Linux bastion; strict by default.
+    verify_bastion_host_key=False,  # Linux bastion; permissive by default.
     verify_device_host_key=False,  # Target device; permissive by default.
 )
 
@@ -63,13 +63,16 @@ channel, and connects the target client over that channel. Resources are closed
 in reverse dependency order.
 
 Host-key verification is independently configurable for the Linux bastion and
-the target device. `verify_bastion_host_key=True` (the default) loads the
-operator's system `known_hosts` and rejects an unknown bastion key. Both Windows
-and Linux use `verify_device_host_key`, which defaults to `False` so unknown
-target keys are accepted without a `known_hosts` entry. Set it to `True` to load
-the system host keys and reject unknown target keys. Disabling either check
-trades protection against machine-in-the-middle attacks for compatibility; use
-strict verification wherever trusted host keys can be provisioned.
+the target device. Both `verify_bastion_host_key` and
+`verify_device_host_key` default to `False`, matching the permissive host-key
+handling successfully used during Windows and Linux live validation. Permissive
+mode uses Paramiko's `AutoAddPolicy` and does not persist learned keys. Setting
+either applicable option to `True` loads normal system host keys and uses
+Paramiko's `RejectPolicy`; strict mode therefore requires the relevant host key
+to have been provisioned there. OrbitFlow does not load Teleport-specific
+known-host files or implement custom Teleport CA verification. Permissive mode
+trades protection against machine-in-the-middle attacks for compatibility, so
+enable strict verification when trusted system host keys can be provisioned.
 
 The caller is responsible for obtaining target credentials from an approved
 secret provider and for discovering the active Teleport identity paths. Passwords,
