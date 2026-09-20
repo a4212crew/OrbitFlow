@@ -57,35 +57,62 @@ def test_host_key_verification_defaults_are_permissive(config):
 
 @patch("orbitflow.transport.windows.time.sleep")
 @patch("orbitflow.transport.windows.socket.create_connection")
-def test_windows_waits_until_forward_presents_ssh_banner(create_connection, sleep):
-    not_ready = MagicMock()
-    not_ready.__enter__.return_value.recv.side_effect = socket.timeout()
-    ready = MagicMock()
-    ready.__enter__.return_value.recv.return_value = b"SSH-2.0-Cisco-1.25\r\n"
-    create_connection.side_effect = [not_ready, ready]
+def test_windows_keeps_probe_open_for_delayed_fragmented_ssh_banner(
+    create_connection, sleep
+):
+    probe = MagicMock()
+    probe.__enter__.return_value.recv.side_effect = [
+        socket.timeout(),
+        socket.timeout(),
+        b"SSH-2.",
+        b"0-Cisco-1.",
+        b"25\r\n",
+    ]
+    create_connection.return_value = probe
     process = MagicMock()
     process.poll.return_value = None
 
     _wait_for_tunnel(process, 49152, 15.0)
 
-    assert create_connection.call_count == 2
-    sleep.assert_called_once_with(0.1)
-    not_ready.__exit__.assert_called_once()
-    ready.__exit__.assert_called_once()
+    create_connection.assert_called_once()
+    assert probe.__enter__.return_value.recv.call_count == 5
+    sleep.assert_not_called()
+    probe.__exit__.assert_called_once()
 
 
 @patch("orbitflow.transport.windows.time.sleep")
 @patch("orbitflow.transport.windows.socket.create_connection")
-def test_windows_rejects_non_ssh_listener_before_accepting_banner(
+def test_windows_accepts_fragmented_banner_after_fragmented_pre_banner_lines(
     create_connection, sleep
 ):
-    non_ssh = MagicMock()
-    non_ssh.__enter__.return_value.recv.return_value = b"HTTP/1.1 200 OK\r\n"
-    ready = MagicMock()
-    ready.__enter__.return_value.recv.return_value = (
-        b"notice\r\nSSH-1.99-Cisco-1.25\r\n"
-    )
-    create_connection.side_effect = [non_ssh, ready]
+    probe = MagicMock()
+    probe.__enter__.return_value.recv.side_effect = [
+        b"legal pre-",
+        b"banner line one\r\nsecond line\r\nSSH-1.",
+        b"99-Cisco-1.25\r",
+        b"\n",
+    ]
+    create_connection.return_value = probe
+    process = MagicMock()
+    process.poll.return_value = None
+
+    _wait_for_tunnel(process, 49152, 15.0)
+
+    create_connection.assert_called_once()
+    assert probe.__enter__.return_value.recv.call_count == 4
+    sleep.assert_not_called()
+
+
+@patch("orbitflow.transport.windows.time.sleep")
+@patch("orbitflow.transport.windows.socket.create_connection")
+def test_windows_reconnects_only_after_probe_connection_closes(
+    create_connection, sleep
+):
+    closed_probe = MagicMock()
+    closed_probe.__enter__.return_value.recv.side_effect = [b"notice\r\n", b""]
+    ready_probe = MagicMock()
+    ready_probe.__enter__.return_value.recv.return_value = b"SSH-2.0-Cisco-1.25\r\n"
+    create_connection.side_effect = [closed_probe, ready_probe]
     process = MagicMock()
     process.poll.return_value = None
 
