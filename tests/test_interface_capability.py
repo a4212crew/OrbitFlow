@@ -15,7 +15,10 @@ from orbitflow.vendors.huawei.interfaces import (
     parse_interface_brief,
     parse_interface_description,
 )
-from orbitflow.vendors.ubiquiti.interfaces import extract_edgeswitch_hostname
+from orbitflow.vendors.ubiquiti.interfaces import (
+    extract_edgeswitch_hostname,
+    parse_interfaces_status,
+)
 
 
 class FakeChannel:
@@ -87,13 +90,23 @@ CASES = {
         "rejection": "Error: Unrecognized command found at '^' position.",
     },
     "ubiquiti_edgeswitch": {
-        "prompt": "edgeswitch#",
+        "prompt": "(C-HAWTH-382GLEN-BAS1) #",
         "paging": "terminal length 0",
-        "command": "show interfaces status",
+        "command": "show interfaces status all",
         "output": (
-            "Port      Name                       Duplex Speed  Neg Link Flow M VLAN\r\n"
-            "0/1       Customer office west       Full   1000   Auto Up   Off  A 10\r\n"
-            "0/2       Spare port                  Auto   N/A    Auto Down Off  A 1"
+            "Port       Name                          Link    Physical    Physical    Flow Control\r\n"
+            "                                         State   Mode        Status      Status\r\n"
+            "---------  ----------------------------  ------  ----------  ----------  ------------\r\n"
+            "0/1        Unit 1                        Up      Auto        1000 Full   Inactive\r\n"
+            "0/2        Unit 2                        Up      Auto        1000 Full   Inactive\r\n"
+            "0/3        Unit 6                        Down    Auto                    Inactive\r\n"
+            "0/7        Access_port                   Down    Auto                    Inactive\r\n"
+            "0/13       Access_port                   Up      Auto        1000 Full   Inactive\r\n"
+            "0/17                                     Down    Auto D                  Inactive\r\n"
+            "3/1                                      Down\r\n"
+            "3/2                                      Down\r\n"
+            "\r\n"
+            "Flow Control:Disabled"
         ),
         "rejection": "% Invalid input detected at '^' marker.",
     },
@@ -158,6 +171,8 @@ def test_every_platform_uses_prompt_hostname_when_name_is_omitted(platform):
     expected = "xr" if platform == "cisco_xr" else CASES[platform]["prompt"][:-1]
     if platform == "huawei_vrp":
         expected = "NE05E"
+    elif platform == "ubiquiti_edgeswitch":
+        expected = "C-HAWTH-382GLEN-BAS1"
     assert records[0].device_name == expected
 
 
@@ -203,9 +218,44 @@ def test_huawei_hostname_extraction(prompt):
     assert extract_huawei_hostname(prompt) == "NE05E-01"
 
 
-@pytest.mark.parametrize("prompt", ["edge-switch-01#", "edge-switch-01>"])
+@pytest.mark.parametrize(
+    "prompt", ["edge-switch-01#", "edge-switch-01>", "(C-HAWTH-382GLEN-BAS1) #"]
+)
 def test_edgeswitch_hostname_extraction(prompt):
-    assert extract_edgeswitch_hostname(prompt) == "edge-switch-01"
+    expected = "C-HAWTH-382GLEN-BAS1" if prompt.startswith("(") else "edge-switch-01"
+    assert extract_edgeswitch_hostname(prompt) == expected
+
+
+def test_edgeswitch_parses_exact_live_multiline_status_table():
+    records = parse_interfaces_status(CASES["ubiquiti_edgeswitch"]["output"])
+
+    assert [
+        (
+            record.port_name,
+            record.port_description,
+            record.admin_status,
+            record.oper_status,
+        )
+        for record in records
+    ] == [
+        ("0/1", "Unit 1", "", "up"),
+        ("0/2", "Unit 2", "", "up"),
+        ("0/3", "Unit 6", "", "down"),
+        ("0/7", "Access_port", "", "down"),
+        ("0/13", "Access_port", "", "up"),
+        ("0/17", "", "", "down"),
+        ("3/1", "", "", "down"),
+        ("3/2", "", "", "down"),
+    ]
+
+
+def test_edgeswitch_rejects_unexpected_non_table_content():
+    with pytest.raises(ValueError, match="unrecognized EdgeSwitch interface row"):
+        parse_interfaces_status(
+            CASES["ubiquiti_edgeswitch"]["output"].replace(
+                "Flow Control:Disabled", "unexpected footer"
+            )
+        )
 
 
 @pytest.mark.parametrize("platform", CASES)
