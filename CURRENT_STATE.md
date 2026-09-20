@@ -45,6 +45,8 @@ All network-device access uses the shared OrbitFlow transport layer.
 
 **Windows**
 - Validated Teleport local-port-forward model using `tsh ssh -N -L`.
+- Tunnel readiness requires an SSH identification banner from a disposable
+  probe connection before Paramiko opens its separate device socket.
 - Paramiko connects to the target device through the local forward.
 - Live validated successfully.
 
@@ -87,7 +89,9 @@ platform has an isolated command/parser adapter, uses `DeviceSession`, disables
 paging with the approved platform command, and returns a clear error for a
 rejected setup or collection command. Empty command output produces an empty
 collection; unrecognized non-empty output is a parser failure. The capability
-does not guess fallback commands after a rejection. `device_name` is optional:
+does not guess fallback commands after a rejection. The IOS-XR parser accepts
+the platform's timestamp line before the interface table while remaining strict
+about other unexpected content. `device_name` is optional:
 vendor adapters extract it from their already-detected CLI prompt, while an
 explicit caller-supplied name remains a compatibility override.
 

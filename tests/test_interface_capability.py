@@ -6,6 +6,7 @@ from orbitflow.capabilities import InterfaceCapabilityError, InterfaceService
 from orbitflow.transport import DeviceSession
 from orbitflow.vendors.cisco.interfaces import (
     extract_ios_xr_hostname,
+    parse_ios_xr_interfaces_description,
     parse_interfaces_description,
 )
 from orbitflow.vendors.cisco.ios import extract_ios_hostname
@@ -166,6 +167,34 @@ def test_ios_and_ios_xe_hostname_extraction(prompt):
 
 def test_ios_xr_hostname_extraction():
     assert extract_ios_xr_hostname("RP/0/RSP0/CPU0:core-xr-01#") == "core-xr-01"
+
+
+def test_ios_xr_parser_ignores_device_timestamp_before_interface_table():
+    records = parse_ios_xr_interfaces_description(
+        "Sun Sep 20 20:15:28.579 AEST\n"
+        "Interface          Status      Protocol    Description\n"
+        "Gi0/0/0/0          up          up          Core link north"
+    )
+
+    assert records[0].port_name == "Gi0/0/0/0"
+    assert records[0].port_description == "Core link north"
+
+
+def test_ios_parser_remains_strict_about_ios_xr_timestamp():
+    with pytest.raises(ValueError, match="unrecognized Cisco interface row"):
+        parse_interfaces_description(
+            "Sun Sep 20 20:15:28.579 AEST\n"
+            "Interface          Status      Protocol    Description\n"
+            "Gi0/0/0/0          up          up          Core link north"
+        )
+
+
+def test_ios_xr_parser_remains_strict_after_interface_table_starts():
+    with pytest.raises(ValueError, match="unrecognized Cisco interface row"):
+        parse_ios_xr_interfaces_description(
+            "Interface          Status      Protocol    Description\n"
+            "Sun Sep 20 20:15:28.579 AEST"
+        )
 
 
 @pytest.mark.parametrize("prompt", ["<NE05E-01>", "[NE05E-01]"])
