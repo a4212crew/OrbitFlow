@@ -42,3 +42,37 @@ Use this file as the durable record of meaningful repository changes.
 - OrbitFlow supports a validated Linux/Ubuntu Teleport `ProxyCommand` + SSH certificate + Paramiko `direct-tcpip` transport.
 - Both validated paths can establish an interactive Cisco CLI session, dynamically detect the prompt, disable paging, run `show version`, and return cleaned command output.
 - Detailed transport rules are maintained in `.agents/skills/jumphost-connectivity/SKILL.md`.
+
+### 2026-09-20 — Initial Python transport layer
+
+**Objective**
+- Provide one common device connection API over the validated Windows and Linux Teleport paths.
+
+**Prompt / Request**
+- Implement transport only, with mocked tests, safe cleanup, and no login/OTP automation.
+
+**Relevant skills**
+- `.agents/skills/jumphost-connectivity/SKILL.md`
+
+**Files changed**
+- `src/orbitflow/transport/*`, `src/orbitflow/__init__.py`, `tests/test_transport.py`
+- `requirements.txt`, `README.md`, `.gitignore`, `DEVLOG.md`
+
+**Implementation**
+- Added `connect_device`, OS-specific Windows and Linux backends, typed settings, an owned session, and transport exceptions.
+- Windows uses a temporary `tsh ssh -N -L` process; Linux uses `tsh proxy ssh`, Teleport key plus certificate, and `direct-tcpip`.
+- Rejects unknown SSH host keys and closes resources on success and failure paths.
+- Uses the target address, rather than the loopback forward address, for Windows SSH host-key lookup.
+- Classifies Linux identity, proxy, and bastion failures as Teleport errors without exposing underlying authentication details.
+
+**Validation / Tests**
+- `PYTHONPATH=src pytest -q` passes 6 mock-only tests for both OS paths.
+- `ruff check src tests`, `ruff format --check src tests`, `python -m compileall -q src`, and `git diff --check` pass.
+
+**Known issues / Limitations**
+- No live-device validation was performed.
+- Linux callers must discover and supply key/certificate paths from their active `tsh` profile.
+- An authenticated `tsh` session and pre-populated system known-hosts entries are prerequisites.
+
+**Next step**
+- Integrate an approved credential provider and active-profile path discovery in a separately scoped task.

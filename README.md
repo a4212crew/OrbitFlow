@@ -1,0 +1,74 @@
+# OrbitFlow
+
+OrbitFlow is a multi-vendor network automation platform. This initial version
+provides only the shared SSH transport layer; inventory, collection, vendor CLI,
+and provisioning workflows are intentionally out of scope.
+
+## Setup
+
+Use Python 3.11 or newer in a virtual environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate          # Linux
+# .venv\Scripts\Activate.ps1       # Windows PowerShell
+python -m pip install -r requirements.txt
+export PYTHONPATH="$PWD/src"         # Linux
+# $env:PYTHONPATH = "$PWD/src"       # Windows PowerShell
+```
+
+Install `tsh` separately and authenticate interactively before running OrbitFlow:
+
+```bash
+tsh login --proxy=<teleport-proxy>
+tsh status
+```
+
+OrbitFlow never performs `tsh login` or handles an OTP.
+
+## Transport API
+
+Callers provide routing configuration and target-device credentials explicitly;
+nothing contains production credentials or user-specific paths.
+
+```python
+from pathlib import Path
+from orbitflow.transport import DeviceCredentials, TransportConfig, connect_device
+
+config = TransportConfig(
+    proxy="teleport.example.net:443",
+    cluster="example-cluster",
+    bastion_host="example-bastion",
+    bastion_user="teleport-user",
+    # Required on Linux; discover these from the active tsh profile.
+    teleport_key_path=Path("/path/from/active/tsh/profile/key"),
+    teleport_cert_path=Path("/path/from/active/tsh/profile/key-cert.pub"),
+)
+
+with connect_device(
+    "192.0.2.10",
+    DeviceCredentials(username="network-user", password="from-secret-provider"),
+    config,
+) as session:
+    shell = session.invoke_shell()
+```
+
+On Windows, OrbitFlow starts `tsh ssh -N -L` and connects Paramiko to the local
+forward while retaining the device address for SSH host-key verification. On
+Linux, it starts `tsh proxy ssh`, authenticates the bastion using the
+provided Teleport private key and certificate, opens a Paramiko `direct-tcpip`
+channel, and connects the target client over that channel. Resources are closed
+in reverse dependency order. SSH host keys must already exist in the operator's
+system known-hosts file; unknown host keys are rejected.
+
+The caller is responsible for obtaining target credentials from an approved
+secret provider and for discovering the active Teleport identity paths. Passwords,
+private keys, and OTPs must not be logged or committed.
+
+## Tests
+
+The suite uses mocks and does not contact Teleport or network devices:
+
+```bash
+PYTHONPATH=src pytest
+```
