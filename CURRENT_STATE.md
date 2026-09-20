@@ -45,9 +45,9 @@ All network-device access uses the shared OrbitFlow transport layer.
 
 **Windows**
 - Validated Teleport local-port-forward model using `tsh ssh -N -L`.
-- Tunnel readiness requires an SSH identification banner from a disposable
-  probe connection before Paramiko opens its separate device socket.
-- Paramiko connects to the target device through the local forward.
+- Tunnel startup retries local-forward connections within `connect_timeout`.
+- The first connected local-forward socket is retained and passed directly to
+  Paramiko; OrbitFlow does not read or consume the device's SSH banner.
 - Live validated successfully.
 
 **Linux / Ubuntu**
