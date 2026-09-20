@@ -312,10 +312,21 @@ def test_huawei_two_column_collection_joins_approved_brief_status_by_name():
         "GE0/2/8.2434                SUPERLOOP1-PPPOE"
     )
     brief_output = (
+        "PHY: Physical\r\n"
+        "*down: administratively down\r\n"
+        "(l): loopback\r\n"
+        "(s): spoofing\r\n"
+        "(b): BFD down\r\n"
+        "(B): Bit-error-detection down\r\n"
+        "(e): ETHOAM down\r\n"
+        "(d): Dampening Suppressed\r\n"
+        "InUti/OutUti: input utility/output utility\r\n"
         "Interface                   PHY   Protocol InUti OutUti inErrors outErrors\r\n"
-        "Eth0/0/0                    up    up       0%    0%     0        0\r\n"
-        "GE0/2/4                     down  down     0%    0%     0        0\r\n"
-        "GE0/2/8.2434                *down down     --    --     0        0"
+        "Ethernet0/0/0               up    up       0%    0%     0        0\r\n"
+        "GigabitEthernet0/2/4        down  down     0%    0%     0        0\r\n"
+        "GigabitEthernet0/2/8.2434   *down down     --    --     0        0\r\n"
+        "LoopBack1                   up    up(s)    0%    0%     0        0\r\n"
+        "NULL0                       up    up(s)    0%    0%     0        0"
     )
     prompt = CASES["huawei_vrp"]["prompt"]
     paging = CASES["huawei_vrp"]["paging"]
@@ -359,6 +370,36 @@ def test_huawei_brief_parser_remains_strict_for_unexpected_rows():
         )
 
 
+def test_huawei_brief_accepts_spoofing_protocol_without_overriding_phy():
+    statuses = parse_interface_brief(
+        "PHY: Physical\n"
+        "*down: administratively down\n"
+        "(l): loopback\n"
+        "(s): spoofing\n"
+        "(b): BFD down\n"
+        "(B): Bit-error-detection down\n"
+        "(e): ETHOAM down\n"
+        "(d): Dampening Suppressed\n"
+        "InUti/OutUti: input utility/output utility\n"
+        "Interface PHY Protocol InUti OutUti inErrors outErrors\n"
+        "LoopBack1 up up(s) 0% 0% 0 0\n"
+        "NULL0 up up(s) 0% 0% 0 0"
+    )
+
+    assert statuses["LoopBack1"] == ("up", "up")
+    assert statuses["NULL0"] == ("up", "up")
+
+
+def test_huawei_brief_rejects_unknown_pre_header_legend():
+    with pytest.raises(ValueError, match="unrecognized Huawei interface brief row"):
+        parse_interface_brief(
+            "PHY: Physical\n"
+            "(x): unexpected state\n"
+            "Interface PHY Protocol InUti OutUti inErrors outErrors\n"
+            "LoopBack1 up up(s) 0% 0% 0 0"
+        )
+
+
 def test_huawei_two_column_collection_requires_matching_brief_status():
     prompt = CASES["huawei_vrp"]["prompt"]
     paging = CASES["huawei_vrp"]["paging"]
@@ -371,7 +412,7 @@ def test_huawei_two_column_collection_requires_matching_brief_status():
             (
                 "display interface brief\r\n"
                 "Interface PHY Protocol InUti OutUti inErrors outErrors\r\n"
-                "GE0/2/4 up up 0% 0% 0 0\r\n"
+                "GigabitEthernet0/2/5 up up 0% 0% 0 0\r\n"
                 f"{prompt}"
             ).encode(),
         ]

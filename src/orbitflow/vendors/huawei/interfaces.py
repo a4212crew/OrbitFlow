@@ -18,7 +18,8 @@ _DESCRIPTION_STATUS_ROW = re.compile(
 )
 _DESCRIPTION_ONLY_ROW = re.compile(r"^(?P<port>\S+)(?:\s{2,}(?P<description>.*))?$")
 _BRIEF_ROW = re.compile(
-    r"^(?P<port>\S+)\s+(?P<phy>\*?(?:up|down))\s+(?P<protocol>up|down)\s+"
+    r"^(?P<port>\S+)\s+(?P<phy>\*?(?:up|down))\s+"
+    r"(?P<protocol>(?:up|down)(?:\([A-Za-z]\))?)\s+"
     r"(?P<in_util>--|\d+(?:\.\d+)?%)\s+(?P<out_util>--|\d+(?:\.\d+)?%)\s+"
     r"(?P<in_errors>\d+)\s+(?P<out_errors>\d+)$",
     re.IGNORECASE,
@@ -29,6 +30,23 @@ _DESCRIPTION_STATUS_HEADER = re.compile(
 _DESCRIPTION_ONLY_HEADER = re.compile(r"^Interface\s+Description$", re.IGNORECASE)
 _BRIEF_HEADER = re.compile(
     r"^Interface\s+PHY\s+Protocol\s+InUti\s+OutUti\s+inErrors\s+outErrors$",
+    re.IGNORECASE,
+)
+_BRIEF_LEGENDS = frozenset(
+    {
+        "PHY: Physical",
+        "*down: administratively down",
+        "(l): loopback",
+        "(s): spoofing",
+        "(b): BFD down",
+        "(B): Bit-error-detection down",
+        "(e): ETHOAM down",
+        "(d): Dampening Suppressed",
+        "InUti/OutUti: input utility/output utility",
+    }
+)
+_CANONICAL_INTERFACE_NAME = re.compile(
+    r"^(?P<prefix>GigabitEthernet|Ethernet|GE|Eth)(?P<suffix>\d.*)$",
     re.IGNORECASE,
 )
 
@@ -100,12 +118,9 @@ def parse_interface_brief(output: str) -> dict[str, tuple[str, str]]:
     statuses: dict[str, tuple[str, str]] = {}
     for raw_line in output.splitlines():
         line = raw_line.strip()
-        lower = line.lower()
-        if (
-            not line
-            or lower.startswith(("physical", "*down:"))
-            or set(line) <= {"-", " "}
-        ):
+        if not line or set(line) <= {"-", " "}:
+            continue
+        if not header_seen and line in _BRIEF_LEGENDS:
             continue
         if _BRIEF_HEADER.fullmatch(line):
             if header_seen:
@@ -130,13 +145,35 @@ def parse_interface_brief(output: str) -> dict[str, tuple[str, str]]:
     return statuses
 
 
+def _canonical_interface_name(port_name: str) -> str:
+    """Expand known VRP abbreviations for description-to-brief matching."""
+    match = _CANONICAL_INTERFACE_NAME.fullmatch(port_name)
+    if match is None:
+        return port_name.casefold()
+    prefix = match.group("prefix").casefold()
+    expanded = "Ethernet" if prefix in {"eth", "ethernet"} else "GigabitEthernet"
+    return f"{expanded}{match.group('suffix')}".casefold()
+
+
 def _join_description_status(
     descriptions: list[InterfaceObservation], statuses: dict[str, tuple[str, str]]
 ) -> list[InterfaceObservation]:
+    canonical_statuses: dict[str, tuple[str, str]] = {}
+    for port_name, status in statuses.items():
+        canonical_name = _canonical_interface_name(port_name)
+        if canonical_name in canonical_statuses:
+            raise ValueError(
+                "Huawei interface brief output contained duplicate canonical "
+                f"interface {port_name!r}"
+            )
+        canonical_statuses[canonical_name] = status
+
     records = []
     for description in descriptions:
         try:
-            admin_status, oper_status = statuses[description.port_name]
+            admin_status, oper_status = canonical_statuses[
+                _canonical_interface_name(description.port_name)
+            ]
         except KeyError as exc:
             raise ValueError(
                 "Huawei interface brief output omitted description interface "

@@ -98,7 +98,11 @@ collection; unrecognized non-empty output is a parser failure. The capability
 does not guess fallback commands after a rejection. Huawei accepts both the
 status-bearing and description-only forms of `display interface description`;
 for the description-only form it uses the approved `display interface brief`
-fallback and joins status by interface name, including subinterfaces. The
+fallback and joins status by Huawei-canonical interface name (`Eth`/`Ethernet`
+and `GE`/`GigabitEthernet`), while preserving the description-side name and
+subinterface suffix in normalized output. Known VRP brief legends and protocol
+suffixes such as `up(s)` are accepted; PHY remains authoritative for normalized
+status. The
 IOS-XR parser accepts
 the platform's timestamp line before the interface table while remaining strict
 about other unexpected content. `device_name` is optional:
