@@ -10,6 +10,33 @@ OrbitFlow is a multi-vendor ISP network automation platform designed to scale to
 
 Core rules and skill routing are defined in `AGENTS.md`.
 
+## Architectural Direction
+
+OrbitFlow is being developed as a reusable network-equipment capability platform and future OSS layer.
+
+The intended dependency flow is:
+
+```text
+External OSS/BSS / REST API / GUI / schedulers
+        -> Integration layer
+        -> Application / workflow layer
+        -> Reusable device capability layer
+        -> Vendor-specific implementation
+        -> DeviceSession / transport
+        -> Network equipment
+```
+
+Key rules:
+- implement each network-device capability once;
+- vendor-specific command/parsing logic remains isolated;
+- normalize CLI output into reusable structured models;
+- workflows compose capabilities for audit, troubleshooting, provisioning, remediation, service assurance, and similar functions;
+- REST/API consumers must call the same application/capability interfaces as internal workflows;
+- separate observe -> analyze -> plan -> apply -> verify -> record;
+- do not make raw CLI execution the primary external OSS interface.
+
+Detailed model: `docs/architecture/device-capability-oss-model.md`.
+
 ## Current Architecture
 
 ### Transport
@@ -80,18 +107,19 @@ Current major implementation areas:
 
 ## Current Development Focus
 
-Build the interface-description collector on top of the existing transport and Cisco IOS/IOS-XE CLI layers.
+Build the interface-description collector as the first reusable device-capability/workflow pattern on top of the existing transport and Cisco IOS/IOS-XE CLI layers.
 
 Expected flow:
 
 ```text
 Inventory
   -> connect_device / DeviceSession
-  -> vendor CLI
-  -> show interfaces description
-  -> vendor parser
-  -> normalized records
-  -> change tracking / reporting
+  -> reusable interface capability
+  -> vendor CLI + vendor parser
+  -> normalized interface records
+  -> workflow analysis / change tracking
+  -> reporting
+  -> future REST/API exposure through the same capability/service interface
 ```
 
 Relevant skills:
