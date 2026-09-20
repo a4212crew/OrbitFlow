@@ -94,8 +94,8 @@ CASES = {
         "paging": "terminal length 0",
         "command": "show interfaces status all",
         "output": (
-            "Port       Name                          Link    Physical    Physical    Flow Control\r\n"
-            "                                         State   Mode        Status      Status\r\n"
+            "                                         Link    Physical    Physical    Flow Control\r\n"
+            "Port       Name                          State   Mode        Status      Status\r\n"
             "---------  ----------------------------  ------  ----------  ----------  ------------\r\n"
             "0/1        Unit 1                        Up      Auto        1000 Full   Inactive\r\n"
             "0/2        Unit 2                        Up      Auto        1000 Full   Inactive\r\n"

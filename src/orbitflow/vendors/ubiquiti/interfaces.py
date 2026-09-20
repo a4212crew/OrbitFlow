@@ -12,8 +12,8 @@ _REJECTED = re.compile(
     r"(?:%\s*(?:Invalid input|Unknown command)|Unrecognized command)", re.IGNORECASE
 )
 _HEADER = (
-    "Port       Name                          Link    Physical    Physical    Flow Control",
-    "                                         State   Mode        Status      Status",
+    "                                         Link    Physical    Physical    Flow Control",
+    "Port       Name                          State   Mode        Status      Status",
     "---------  ----------------------------  ------  ----------  ----------  ------------",
 )
 _COLUMN_SPANS = tuple(
