@@ -89,6 +89,11 @@ rejected setup or collection command. Empty command output produces an empty
 collection; unrecognized non-empty output is a parser failure. The capability
 does not guess fallback commands after a rejection.
 
+`scripts/live_validate_interfaces.py` provides a deliberately limited
+single-device integration entry point for live validation of this existing
+capability. It accepts caller-supplied credentials and `TransportConfig`, prints
+normalized records, and does not implement inventory or production collection.
+
 ## Repository Structure
 
 Current major implementation areas:
@@ -96,6 +101,7 @@ Current major implementation areas:
 - `src/orbitflow/vendors/cisco/` — Cisco IOS/IOS-XE CLI behaviour;
 - `src/orbitflow/vendors/huawei/` and `src/orbitflow/vendors/ubiquiti/` — vendor interface collection/parsing;
 - `src/orbitflow/capabilities/` and `src/orbitflow/models.py` — reusable capabilities and normalized records;
+- `scripts/live_validate_interfaces.py` — single-device interface integration validation;
 - `tests/` — deterministic mocked/unit tests;
 - `.agents/skills/` — task/vendor-specific implementation guidance.
 
