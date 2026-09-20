@@ -7,7 +7,7 @@ from typing import Callable, Protocol
 
 from orbitflow.models import InterfaceRecord
 from orbitflow.transport import DeviceSession
-from orbitflow.vendors.interface_types import InterfaceObservation
+from orbitflow.vendors.interface_types import InterfaceCollection
 from orbitflow.vendors.cisco.interfaces import (
     CiscoInterfaceAdapter,
     CiscoXRInterfaceAdapter,
@@ -23,7 +23,7 @@ class InterfaceCapabilityError(Exception):
 class _InterfaceAdapter(Protocol):
     def __init__(self, session: DeviceSession, *, timeout: float = 10.0) -> None: ...
 
-    def collect(self) -> list[InterfaceObservation]: ...
+    def collect(self) -> InterfaceCollection: ...
 
 
 _ADAPTERS: dict[str, type[_InterfaceAdapter]] = {
@@ -48,9 +48,9 @@ class InterfaceService:
         self,
         session: DeviceSession,
         *,
-        device_name: str,
         device_ip: str,
         platform: str,
+        device_name: str | None = None,
     ) -> list[InterfaceRecord]:
         """Return one common record type without taking ownership of *session*."""
         adapter_type = _ADAPTERS.get(platform)
@@ -59,18 +59,20 @@ class InterfaceService:
                 f"unsupported interface platform: {platform}"
             )
         try:
-            observations = adapter_type(session, timeout=self._timeout).collect()
+            collection = adapter_type(session, timeout=self._timeout).collect()
         except Exception as exc:
             if isinstance(exc, InterfaceCapabilityError):
                 raise
             raise InterfaceCapabilityError(
-                f"interface collection failed for {device_name} ({device_ip}, {platform}): {exc}"
+                f"interface collection failed for {device_name or device_ip} "
+                f"({device_ip}, {platform}): {exc}"
             ) from exc
 
+        record_device_name = device_name or collection.device_name
         collected_at = self._clock()
         return [
             InterfaceRecord(
-                device_name=device_name,
+                device_name=record_device_name,
                 device_ip=device_ip,
                 platform=platform,
                 port_name=item.port_name,
@@ -79,5 +81,5 @@ class InterfaceService:
                 oper_status=item.oper_status,
                 collection_time=collected_at,
             )
-            for item in observations
+            for item in collection.observations
         ]

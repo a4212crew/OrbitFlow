@@ -56,7 +56,6 @@ def test_live_validation_reuses_transport_and_interface_service(monkeypatch):
         "cisco_xe",
         credentials,
         config,
-        device_name="edge-01",
         output=output,
     )
 
@@ -67,7 +66,7 @@ def test_live_validation_reuses_transport_and_interface_service(monkeypatch):
             "collect",
             session,
             {
-                "device_name": "edge-01",
+                "device_name": None,
                 "device_ip": "192.0.2.10",
                 "platform": "cisco_xe",
             },

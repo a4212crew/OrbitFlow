@@ -6,7 +6,7 @@ import re
 
 from orbitflow.transport import DeviceSession
 from orbitflow.vendors.common import PromptCLI
-from orbitflow.vendors.interface_types import InterfaceObservation
+from orbitflow.vendors.interface_types import InterfaceCollection, InterfaceObservation
 
 _REJECTED = re.compile(
     r"(?:%\s*(?:Invalid input|Unknown command)|Unrecognized command)", re.IGNORECASE
@@ -16,6 +16,14 @@ _ROW = re.compile(
     r"(?P<speed>\S+)\s+(?P<neg>\S+)\s+(?P<link>Up|Down|Detached)(?:\s+.*)?$",
     re.IGNORECASE,
 )
+
+
+def extract_edgeswitch_hostname(prompt: str) -> str:
+    """Extract the hostname from an EdgeSwitch exec prompt."""
+    match = re.fullmatch(r"(?P<hostname>[^:#>\s]+)[#>]", prompt.strip())
+    if match is None:
+        raise ValueError(f"unrecognized EdgeSwitch prompt: {prompt!r}")
+    return match.group("hostname")
 
 
 def parse_interfaces_status(output: str) -> list[InterfaceObservation]:
@@ -48,7 +56,7 @@ class EdgeSwitchInterfaceAdapter:
         self._session = session
         self._timeout = timeout
 
-    def collect(self) -> list[InterfaceObservation]:
+    def collect(self) -> InterfaceCollection:
         cli = PromptCLI(
             self._session,
             paging_command="terminal length 0",
@@ -62,4 +70,7 @@ class EdgeSwitchInterfaceAdapter:
             raise ValueError(
                 "EdgeSwitch rejected approved command 'show interfaces status'"
             )
-        return parse_interfaces_status(output)
+        return InterfaceCollection(
+            device_name=extract_edgeswitch_hostname(cli.prompt),
+            observations=parse_interfaces_status(output),
+        )

@@ -39,6 +39,14 @@ def detect_prompt(output: str) -> str | None:
     return matches[-1].group(1).strip()
 
 
+def extract_ios_hostname(prompt: str) -> str:
+    """Extract the hostname from an IOS/IOS-XE exec prompt."""
+    match = re.fullmatch(r"(?P<hostname>[^:#>\s]+)[#>]", prompt.strip())
+    if match is None:
+        raise ValueError(f"unrecognized IOS/IOS-XE prompt: {prompt!r}")
+    return match.group("hostname")
+
+
 def clean_output(output: str, command: str, prompt: str) -> str:
     """Remove a command echo and final prompt from channel output."""
     lines = _normalize(output).split("\n")

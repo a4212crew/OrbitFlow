@@ -113,9 +113,12 @@ records = run_live_validation(
     platform,
     credentials,
     transport_config,
-    device_name="edge-01",  # Optional; defaults to device_host.
+    # device_name="edge-01",  # Optional compatibility override.
 )
 ```
+
+When `device_name` is omitted, the vendor adapter discovers the hostname from
+the device's existing CLI prompt; no additional device command is sent.
 
 Obtain credentials and configuration through the approved operator-side secret
 and Teleport-profile mechanisms; do not place secret values in the script.

@@ -29,16 +29,16 @@ def run_live_validation(
     output: TextIO = sys.stdout,
 ) -> list[InterfaceRecord]:
     """Collect and print normalized interfaces for one live device."""
-    display_name = device_name or device_host
     session: DeviceSession
     with connect_device(device_host, credentials, transport_config) as session:
         records = InterfaceService().collect(
             session,
-            device_name=display_name,
             device_ip=device_host,
             platform=platform,
+            device_name=device_name,
         )
 
+    display_name = records[0].device_name if records else (device_name or device_host)
     print(
         f"{display_name} ({device_host}, {platform}): {len(records)} interface(s)",
         file=output,

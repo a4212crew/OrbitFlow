@@ -9,3 +9,11 @@ class InterfaceObservation:
     port_description: str = ""
     admin_status: str = ""
     oper_status: str = ""
+
+
+@dataclass(frozen=True)
+class InterfaceCollection:
+    """Vendor collection result with identity learned from the device prompt."""
+
+    device_name: str
+    observations: list[InterfaceObservation]

@@ -4,8 +4,16 @@ import pytest
 
 from orbitflow.capabilities import InterfaceCapabilityError, InterfaceService
 from orbitflow.transport import DeviceSession
-from orbitflow.vendors.cisco.interfaces import parse_interfaces_description
-from orbitflow.vendors.huawei.interfaces import parse_interface_description
+from orbitflow.vendors.cisco.interfaces import (
+    extract_ios_xr_hostname,
+    parse_interfaces_description,
+)
+from orbitflow.vendors.cisco.ios import extract_ios_hostname
+from orbitflow.vendors.huawei.interfaces import (
+    extract_huawei_hostname,
+    parse_interface_description,
+)
+from orbitflow.vendors.ubiquiti.interfaces import extract_edgeswitch_hostname
 
 
 class FakeChannel:
@@ -90,7 +98,7 @@ CASES = {
 }
 
 
-def run_collection(platform, output=None, setup_output=""):
+def run_collection(platform, output=None, setup_output="", device_name="edge-01"):
     case = CASES[platform]
     prompt = case["prompt"]
     paging = case["paging"]
@@ -105,9 +113,9 @@ def run_collection(platform, output=None, setup_output=""):
     now = datetime(2026, 9, 20, 12, tzinfo=timezone.utc)
     records = InterfaceService(lambda: now).collect(
         session,
-        device_name="edge-01",
         device_ip="192.0.2.10",
         platform=platform,
+        device_name=device_name,
     )
     return records, channel, now
 
@@ -139,6 +147,35 @@ def test_every_platform_normalizes_status_and_descriptions_with_spaces(platform)
         assert first.admin_status == ""
     else:
         assert first.admin_status == "up"
+
+
+@pytest.mark.parametrize("platform", CASES)
+def test_every_platform_uses_prompt_hostname_when_name_is_omitted(platform):
+    records, _channel, _now = run_collection(platform, device_name=None)
+
+    expected = "xr" if platform == "cisco_xr" else CASES[platform]["prompt"][:-1]
+    if platform == "huawei_vrp":
+        expected = "NE05E"
+    assert records[0].device_name == expected
+
+
+@pytest.mark.parametrize("prompt", ["branch-router#", "branch-router>"])
+def test_ios_and_ios_xe_hostname_extraction(prompt):
+    assert extract_ios_hostname(prompt) == "branch-router"
+
+
+def test_ios_xr_hostname_extraction():
+    assert extract_ios_xr_hostname("RP/0/RSP0/CPU0:core-xr-01#") == "core-xr-01"
+
+
+@pytest.mark.parametrize("prompt", ["<NE05E-01>", "[NE05E-01]"])
+def test_huawei_hostname_extraction(prompt):
+    assert extract_huawei_hostname(prompt) == "NE05E-01"
+
+
+@pytest.mark.parametrize("prompt", ["edge-switch-01#", "edge-switch-01>"])
+def test_edgeswitch_hostname_extraction(prompt):
+    assert extract_edgeswitch_hostname(prompt) == "edge-switch-01"
 
 
 @pytest.mark.parametrize("platform", CASES)
