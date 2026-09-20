@@ -1,8 +1,8 @@
 # OrbitFlow
 
-OrbitFlow is a multi-vendor network automation platform. This initial version
-provides only the shared SSH transport layer; inventory, collection, vendor CLI,
-and provisioning workflows are intentionally out of scope.
+OrbitFlow is a multi-vendor network automation platform. This version provides
+the shared SSH transport layer and a reusable Cisco IOS/IOS-XE interactive CLI;
+inventory, collection, and provisioning workflows are intentionally out of scope.
 
 ## Setup
 
@@ -54,6 +54,25 @@ with connect_device(
 ) as session:
     shell = session.invoke_shell()
 ```
+
+## Cisco IOS/IOS-XE interactive CLI
+
+`CiscoIOSCLI` uses an existing `DeviceSession`; it does not implement or bypass
+the transport layer. It dynamically recognizes prompts ending in `#` or `>`,
+disables paging with `terminal length 0`, and reads until each command's trailing
+prompt using the requested timeout. Returned text excludes the command echo and
+trailing prompt.
+
+```python
+from orbitflow.vendors.cisco import CiscoIOSCLI
+
+with connect_device(device_host, credentials, config) as session:
+    cli = CiscoIOSCLI(session, timeout=10)
+    version = cli.run_command("show version", timeout=30)
+```
+
+This class is specifically for IOS and IOS-XE. Future IOS-XR behavior belongs in
+a separate vendor module rather than being inferred from matching commands.
 
 On Windows, OrbitFlow starts `tsh ssh -N -L` and connects Paramiko to the local
 forward while retaining the device address for SSH host-key verification. On
