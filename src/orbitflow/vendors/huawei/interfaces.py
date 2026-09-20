@@ -46,9 +46,17 @@ _BRIEF_LEGENDS = frozenset(
     }
 )
 _CANONICAL_INTERFACE_NAME = re.compile(
-    r"^(?P<prefix>GigabitEthernet|Ethernet|GE|Eth)(?P<suffix>\d.*)$",
+    r"^(?P<prefix>GigabitEthernet|Ethernet|LoopBack|Loop|GE|Eth)(?P<suffix>\d.*)$",
     re.IGNORECASE,
 )
+_CANONICAL_INTERFACE_PREFIXES = {
+    "eth": "Ethernet",
+    "ethernet": "Ethernet",
+    "ge": "GigabitEthernet",
+    "gigabitethernet": "GigabitEthernet",
+    "loop": "LoopBack",
+    "loopback": "LoopBack",
+}
 
 
 def extract_huawei_hostname(prompt: str) -> str:
@@ -150,8 +158,7 @@ def _canonical_interface_name(port_name: str) -> str:
     match = _CANONICAL_INTERFACE_NAME.fullmatch(port_name)
     if match is None:
         return port_name.casefold()
-    prefix = match.group("prefix").casefold()
-    expanded = "Ethernet" if prefix in {"eth", "ethernet"} else "GigabitEthernet"
+    expanded = _CANONICAL_INTERFACE_PREFIXES[match.group("prefix").casefold()]
     return f"{expanded}{match.group('suffix')}".casefold()
 
 

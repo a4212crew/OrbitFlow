@@ -309,7 +309,8 @@ def test_huawei_two_column_collection_joins_approved_brief_status_by_name():
         "Interface                   Description\r\n"
         "Eth0/0/0                    HUAWEI, Ethernet0/0/0 Interface\r\n"
         "GE0/2/4                     Uplink AF60 to T-STKI-ASCEN-RTR1\r\n"
-        "GE0/2/8.2434                SUPERLOOP1-PPPOE"
+        "GE0/2/8.2434                SUPERLOOP1-PPPOE\r\n"
+        "Loop1                       Local loopback"
     )
     brief_output = (
         "PHY: Physical\r\n"
@@ -348,12 +349,15 @@ def test_huawei_two_column_collection_joins_approved_brief_status_by_name():
         "Eth0/0/0",
         "GE0/2/4",
         "GE0/2/8.2434",
+        "Loop1",
     ]
     assert [(item.admin_status, item.oper_status) for item in records] == [
         ("up", "up"),
         ("up", "down"),
         ("down", "down"),
+        ("up", "up"),
     ]
+    assert records[-1].port_description == "Local loopback"
     assert channel.sent == [
         b"\n",
         b"screen-length 0 temporary\n",
