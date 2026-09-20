@@ -65,8 +65,11 @@ def connect_linux(
         key.load_certificate(str(config.teleport_cert_path))
         proxy = paramiko.ProxyCommand(command)
         bastion = paramiko.SSHClient()
-        bastion.load_system_host_keys()
-        bastion.set_missing_host_key_policy(paramiko.RejectPolicy())
+        if config.verify_bastion_host_key:
+            bastion.load_system_host_keys()
+            bastion.set_missing_host_key_policy(paramiko.RejectPolicy())
+        else:
+            bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         bastion.connect(
             config.bastion_host,
             port=config.bastion_port,
@@ -92,8 +95,11 @@ def connect_linux(
             ("127.0.0.1", 0),
         )
         target = paramiko.SSHClient()
-        target.load_system_host_keys()
-        target.set_missing_host_key_policy(paramiko.RejectPolicy())
+        if config.verify_device_host_key:
+            target.load_system_host_keys()
+            target.set_missing_host_key_policy(paramiko.RejectPolicy())
+        else:
+            target.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         target.connect(
             device_host,
             port=config.device_port,

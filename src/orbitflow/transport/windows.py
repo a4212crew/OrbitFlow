@@ -80,8 +80,11 @@ def connect_windows(
 
     client = paramiko.SSHClient()
     forwarded_socket = None
-    client.load_system_host_keys()
-    client.set_missing_host_key_policy(paramiko.RejectPolicy())
+    if config.verify_device_host_key:
+        client.load_system_host_keys()
+        client.set_missing_host_key_policy(paramiko.RejectPolicy())
+    else:
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
         _wait_for_tunnel(process, local_port, config.connect_timeout)
         # Keep the real device hostname as Paramiko's host-key lookup key while

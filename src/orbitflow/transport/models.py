@@ -30,6 +30,8 @@ class TransportConfig:
     device_port: int = 22
     bastion_port: int = 3022
     connect_timeout: float = 15.0
+    verify_bastion_host_key: bool = True
+    verify_device_host_key: bool = False
 
 
 class DeviceSession:

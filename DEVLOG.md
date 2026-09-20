@@ -43,6 +43,35 @@ Use this file as the durable record of meaningful repository changes.
 - Both validated paths can establish an interactive Cisco CLI session, dynamically detect the prompt, disable paging, run `show version`, and return cleaned command output.
 - Detailed transport rules are maintained in `.agents/skills/jumphost-connectivity/SKILL.md`.
 
+### 2026-09-20 — Configurable SSH host-key verification
+
+**Objective**
+- Allow bastion and target host-key verification to be configured independently.
+
+**Prompt / Request**
+- Preserve strict verification when enabled, while allowing unknown keys without a `known_hosts` prerequisite when disabled.
+
+**Relevant skills**
+- `.agents/skills/jumphost-connectivity/SKILL.md`
+
+**Files changed**
+- `src/orbitflow/transport/models.py`, `src/orbitflow/transport/linux.py`, `src/orbitflow/transport/windows.py`
+- `tests/test_transport.py`, `README.md`, `DEVLOG.md`
+
+**Implementation**
+- Added strict-by-default Linux bastion verification and permissive-by-default target-device verification settings.
+- Both Windows and Linux target connections honor the device setting without changing either validated Teleport path.
+- Strict mode loads system host keys and rejects unknown keys; permissive mode accepts unknown keys without loading `known_hosts`.
+
+**Validation / Tests**
+- Added mocked coverage for enabled and disabled verification on the Linux bastion and on Windows/Linux target devices.
+
+**Known issues / Limitations**
+- Permissive verification does not protect against machine-in-the-middle attacks and should only be used when trusted host keys cannot be provisioned.
+
+**Next step**
+- Provision trusted target host keys and enable strict device verification where operationally practical.
+
 ### 2026-09-20 — Initial Python transport layer
 
 **Objective**

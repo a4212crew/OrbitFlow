@@ -1,6 +1,8 @@
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import paramiko
 import pytest
 
 from orbitflow.transport import (
@@ -87,6 +89,10 @@ def test_windows_uses_tsh_forward_and_cleans_up(
         sock=forwarded_socket,
         timeout=15.0,
     )
+    client.load_system_host_keys.assert_not_called()
+    assert isinstance(
+        client.set_missing_host_key_policy.call_args.args[0], paramiko.AutoAddPolicy
+    )
 
     session.close()
     session.close()
@@ -118,12 +124,81 @@ def test_linux_uses_certificate_and_direct_tcpip(
         "direct-tcpip", ("192.0.2.10", 22), ("127.0.0.1", 0)
     )
     assert target.connect.call_args.kwargs["sock"] is channel
+    bastion.load_system_host_keys.assert_called_once_with()
+    assert isinstance(
+        bastion.set_missing_host_key_policy.call_args.args[0], paramiko.RejectPolicy
+    )
+    target.load_system_host_keys.assert_not_called()
+    assert isinstance(
+        target.set_missing_host_key_policy.call_args.args[0], paramiko.AutoAddPolicy
+    )
 
     session.close()
     assert target.close.call_count == 1
     assert channel.close.call_count == 1
     assert bastion.close.call_count == 1
     assert proxy.close.call_count == 1
+
+
+@patch("orbitflow.transport.windows._wait_for_tunnel")
+@patch("orbitflow.transport.windows.socket.create_connection")
+@patch("orbitflow.transport.windows._free_local_port", return_value=49152)
+@patch("orbitflow.transport.windows.subprocess.Popen")
+@patch("orbitflow.transport.windows.paramiko.SSHClient")
+def test_windows_can_require_device_host_key_verification(
+    ssh_client,
+    popen,
+    _free_port,
+    _create_connection,
+    _wait_for_tunnel,
+    credentials,
+    config,
+):
+    popen.return_value.poll.return_value = None
+    client = ssh_client.return_value
+
+    session = connect_windows(
+        "192.0.2.10",
+        credentials,
+        replace(config, verify_device_host_key=True),
+    )
+
+    client.load_system_host_keys.assert_called_once_with()
+    assert isinstance(
+        client.set_missing_host_key_policy.call_args.args[0], paramiko.RejectPolicy
+    )
+    session.close()
+
+
+@patch("orbitflow.transport.linux.paramiko.ProxyCommand")
+@patch("orbitflow.transport.linux.paramiko.PKey.from_path")
+@patch("orbitflow.transport.linux.paramiko.SSHClient")
+def test_linux_can_skip_bastion_and_require_device_host_key_verification(
+    ssh_client, _from_path, _proxy_command, credentials, config
+):
+    bastion, target = MagicMock(), MagicMock()
+    ssh_client.side_effect = [bastion, target]
+    bastion.get_transport.return_value.is_active.return_value = True
+
+    session = connect_linux(
+        "192.0.2.10",
+        credentials,
+        replace(
+            config,
+            verify_bastion_host_key=False,
+            verify_device_host_key=True,
+        ),
+    )
+
+    bastion.load_system_host_keys.assert_not_called()
+    assert isinstance(
+        bastion.set_missing_host_key_policy.call_args.args[0], paramiko.AutoAddPolicy
+    )
+    target.load_system_host_keys.assert_called_once_with()
+    assert isinstance(
+        target.set_missing_host_key_policy.call_args.args[0], paramiko.RejectPolicy
+    )
+    session.close()
 
 
 def test_linux_requires_explicit_active_profile_paths(credentials, config):
