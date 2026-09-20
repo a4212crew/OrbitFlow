@@ -17,6 +17,11 @@ _REJECTED = re.compile(
     r"%\s*(?:Invalid input|Unknown command|Unrecognized command|Incomplete command)",
     re.IGNORECASE,
 )
+_IOS_XR_TIMESTAMP = re.compile(
+    r"^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) "
+    r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) "
+    r"\d{1,2} \d{2}:\d{2}:\d{2}\.\d{3} [A-Z][A-Z0-9+-]*$"
+)
 
 
 class CiscoXRCLI(CiscoIOSCLI):
@@ -73,6 +78,21 @@ def parse_interfaces_description(output: str) -> list[InterfaceObservation]:
     return records
 
 
+def parse_ios_xr_interfaces_description(output: str) -> list[InterfaceObservation]:
+    """Parse IOS-XR output, allowing its timestamp before the table header."""
+    lines = output.splitlines()
+    table_started = False
+    filtered_lines = []
+    for raw_line in lines:
+        line = raw_line.strip()
+        if line.lower().startswith("interface"):
+            table_started = True
+        if not table_started and _IOS_XR_TIMESTAMP.fullmatch(line):
+            continue
+        filtered_lines.append(raw_line)
+    return parse_interfaces_description("\n".join(filtered_lines))
+
+
 class CiscoInterfaceAdapter:
     """Collect interfaces for an explicitly selected Cisco platform."""
 
@@ -89,11 +109,12 @@ class CiscoInterfaceAdapter:
             )
         return InterfaceCollection(
             device_name=self.extract_hostname(cli.prompt),
-            observations=parse_interfaces_description(output),
+            observations=self.parse_output(output),
         )
 
     cli_type = CiscoIOSCLI
     extract_hostname = staticmethod(extract_ios_hostname)
+    parse_output = staticmethod(parse_interfaces_description)
 
 
 class CiscoXRInterfaceAdapter(CiscoInterfaceAdapter):
@@ -101,3 +122,4 @@ class CiscoXRInterfaceAdapter(CiscoInterfaceAdapter):
 
     cli_type = CiscoXRCLI
     extract_hostname = staticmethod(extract_ios_xr_hostname)
+    parse_output = staticmethod(parse_ios_xr_interfaces_description)

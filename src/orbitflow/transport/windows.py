@@ -38,10 +38,20 @@ def _wait_for_tunnel(process: Any, port: int, timeout: float) -> None:
                 "tsh local forwarding process exited before becoming ready"
             )
         try:
-            with socket.create_connection(("127.0.0.1", port), timeout=0.2):
-                return
+            remaining = max(0.001, deadline - time.monotonic())
+            with socket.create_connection(
+                ("127.0.0.1", port), timeout=min(0.2, remaining)
+            ) as probe:
+                probe.settimeout(min(0.2, remaining))
+                banner = probe.recv(255)
+                if any(
+                    line.startswith((b"SSH-2.0-", b"SSH-1.99-"))
+                    for line in banner.splitlines()
+                ):
+                    return
         except OSError:
-            time.sleep(0.1)
+            pass
+        time.sleep(0.1)
     raise TunnelError("timed out waiting for the tsh local forwarding port")
 
 

@@ -1,3 +1,4 @@
+import socket
 from dataclasses import replace
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -13,7 +14,7 @@ from orbitflow.transport import (
     connect_device,
 )
 from orbitflow.transport.linux import connect_linux
-from orbitflow.transport.windows import connect_windows
+from orbitflow.transport.windows import _wait_for_tunnel, connect_windows
 
 
 @pytest.fixture
@@ -52,6 +53,46 @@ def test_connect_device_rejects_unsupported_os(credentials, config):
 def test_host_key_verification_defaults_are_permissive(config):
     assert config.verify_bastion_host_key is False
     assert config.verify_device_host_key is False
+
+
+@patch("orbitflow.transport.windows.time.sleep")
+@patch("orbitflow.transport.windows.socket.create_connection")
+def test_windows_waits_until_forward_presents_ssh_banner(create_connection, sleep):
+    not_ready = MagicMock()
+    not_ready.__enter__.return_value.recv.side_effect = socket.timeout()
+    ready = MagicMock()
+    ready.__enter__.return_value.recv.return_value = b"SSH-2.0-Cisco-1.25\r\n"
+    create_connection.side_effect = [not_ready, ready]
+    process = MagicMock()
+    process.poll.return_value = None
+
+    _wait_for_tunnel(process, 49152, 15.0)
+
+    assert create_connection.call_count == 2
+    sleep.assert_called_once_with(0.1)
+    not_ready.__exit__.assert_called_once()
+    ready.__exit__.assert_called_once()
+
+
+@patch("orbitflow.transport.windows.time.sleep")
+@patch("orbitflow.transport.windows.socket.create_connection")
+def test_windows_rejects_non_ssh_listener_before_accepting_banner(
+    create_connection, sleep
+):
+    non_ssh = MagicMock()
+    non_ssh.__enter__.return_value.recv.return_value = b"HTTP/1.1 200 OK\r\n"
+    ready = MagicMock()
+    ready.__enter__.return_value.recv.return_value = (
+        b"notice\r\nSSH-1.99-Cisco-1.25\r\n"
+    )
+    create_connection.side_effect = [non_ssh, ready]
+    process = MagicMock()
+    process.poll.return_value = None
+
+    _wait_for_tunnel(process, 49152, 15.0)
+
+    assert create_connection.call_count == 2
+    sleep.assert_called_once_with(0.1)
 
 
 @patch("orbitflow.transport.windows._wait_for_tunnel")
