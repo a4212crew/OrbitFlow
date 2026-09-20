@@ -1,0 +1,236 @@
+# OrbitFlow Device Capability and OSS Architecture
+
+## Purpose
+
+OrbitFlow is intended to evolve from a network automation codebase into a reusable OSS capability layer.
+
+The central design rule is:
+
+> Implement network-device capabilities once, then allow internal workflows, external REST API consumers, future GUIs, schedulers, and OSS/BSS integrations to call the same application and capability interfaces.
+
+The REST/API layer must not reimplement vendor-specific device logic.
+
+## Architectural Layers
+
+### 1. Infrastructure Layer
+
+Responsibilities:
+- Teleport and SSH transport;
+- device sessions;
+- inventory access;
+- credential integration;
+- common logging and execution plumbing.
+
+Higher layers must not recreate OS-specific transport.
+
+### 2. Device Capability Layer
+
+This layer represents reusable operations that can be performed against network equipment.
+
+Examples:
+- get interface status/descriptions/counters;
+- get VLAN state;
+- get MAC table;
+- get ARP/neighbor state;
+- get routes;
+- get L2VPN/service state;
+- generate deterministic configuration;
+- apply configuration through approved safety controls;
+- verify resulting state.
+
+Vendor-specific implementations may use different commands and parsers, but should return normalized structured models wherever practical.
+
+Conceptual example:
+
+```python
+vlans = device.get_vlans()
+interfaces = device.get_interfaces()
+macs = device.get_mac_table()
+```
+
+A workflow should not need to know whether the device is Cisco IOS-XE, IOS-XR, Huawei VRP, or another supported platform.
+
+### 3. Normalized Models
+
+Raw CLI output should be parsed into reusable structured records.
+
+Examples:
+- `InterfaceRecord`
+- `VlanRecord`
+- `MacRecord`
+- `RouteRecord`
+- `ServiceRecord`
+- `TroubleshootingFinding`
+- configuration/change plan models
+
+Normalized models are intended to be reused by:
+- internal workflows;
+- analysis logic;
+- Excel/reporting;
+- JSON serialization;
+- REST API responses;
+- future GUIs;
+- external OSS/BSS integrations.
+
+### 4. Application / Workflow Layer
+
+Complex operational features orchestrate reusable device capabilities rather than embedding vendor commands directly.
+
+Examples:
+- interface description collector;
+- VLAN audit;
+- VLAN mismatch analysis;
+- configuration planning and remediation;
+- service troubleshooting;
+- service assurance;
+- provisioning;
+- migration checks;
+- compliance/audit workflows.
+
+Recommended pattern:
+
+```text
+OBSERVE
+  -> collect normalized state
+
+ANALYZE
+  -> compare against policy / expected state
+
+PLAN
+  -> generate deterministic remediation plan
+
+APPLY
+  -> execute only when explicitly requested and safety checks pass
+
+VERIFY
+  -> recollect state and confirm result
+
+RECORD
+  -> report/log outcome
+```
+
+Read-only analysis must remain usable without configuration privileges.
+
+### 5. Integration / OSS Layer
+
+OrbitFlow should expose the same application and capability interfaces through external integrations.
+
+Potential consumers:
+- REST API;
+- internal GUI;
+- schedulers;
+- external OSS/BSS systems;
+- service portals;
+- other automation platforms.
+
+The API layer should be thin. It should authenticate/authorize, validate requests, call the same internal service/capability interfaces, and serialize normalized results.
+
+Conceptual examples:
+
+```text
+GET  /devices/{id}/interfaces
+GET  /devices/{id}/vlans
+GET  /devices/{id}/mac-table
+GET  /devices/{id}/routes
+
+POST /workflows/vlan-audit
+POST /workflows/service-troubleshooting
+POST /workflows/vlan-remediation
+```
+
+Normal OSS operations should expose intent/capability APIs rather than raw vendor CLI.
+
+A generic raw-command API must not become the main OSS interface. If one is introduced later for controlled engineering use, it should be separately authorized and treated as an exceptional capability.
+
+## Device Facade / Capability Interface
+
+OrbitFlow should move toward a device facade/factory that selects the correct vendor implementation while presenting stable capabilities to workflows.
+
+Conceptual example:
+
+```python
+device = device_factory(inventory_record)
+
+interfaces = device.get_interfaces()
+vlans = device.get_vlans()
+
+plan = device.plan_config(...)
+device.apply_config(plan)
+device.verify(...)
+```
+
+The exact class structure should evolve incrementally. Do not create empty abstractions or directories before they are needed, but new features should follow this direction.
+
+## Vendor Isolation
+
+Vendor commands and parsing rules belong in vendor-specific modules.
+
+A higher-level workflow must not contain code such as:
+
+```python
+if vendor == "cisco":
+    run("show vlan brief")
+elif vendor == "huawei":
+    run("display vlan")
+```
+
+Instead, the workflow should call a capability such as `get_vlans()`, and the selected vendor implementation decides how to obtain and parse the data.
+
+## Configuration Safety
+
+Configuration capabilities must remain distinct from observation and analysis.
+
+Preferred flow:
+
+```text
+validate
+  -> pre-check
+  -> plan/generate
+  -> explicit apply
+  -> verify
+  -> record
+```
+
+API exposure must preserve the same safety model. An API endpoint must not bypass validation, pre-check, apply, verification, or audit controls already required by internal workflows.
+
+## Troubleshooting Model
+
+Troubleshooting should collect reusable facts and evaluate deterministic diagnostic rules.
+
+Conceptual flow:
+
+```text
+Collect facts
+  -> normalize observations
+  -> evaluate diagnostic rules
+  -> produce findings
+  -> narrow probable fault domain
+  -> suggest next checks or remediation
+  -> optional explicit remediation
+```
+
+Possible capabilities used by troubleshooting:
+- interface state/counters;
+- VLAN presence;
+- MAC learning;
+- ARP/neighbor state;
+- routing state;
+- service/L2VPN state;
+- configuration/policy state.
+
+Troubleshooting output should be structured enough to support CLI presentation, reports, REST API responses, and future GUI presentation.
+
+## Development Guidance
+
+When adding a new feature:
+
+1. Identify reusable device capability/capabilities first.
+2. Implement vendor-specific command/parsing logic in the vendor layer.
+3. Normalize output into structured models.
+4. Keep analysis/decision logic independent from raw CLI syntax.
+5. Build the workflow by composing capabilities.
+6. Keep configuration planning/apply/verify separate from observation.
+7. Make the same capability/service callable by future REST/API consumers without duplicating device logic.
+8. Add deterministic tests at each reusable layer.
+
+This architecture should be applied incrementally as OrbitFlow grows.
