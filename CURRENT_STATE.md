@@ -55,6 +55,12 @@ All network-device access uses the shared OrbitFlow transport layer.
 - A second Paramiko session connects to the target device through the bastion channel.
 - Live validated successfully.
 
+Both target-device paths first use normal Paramiko authentication. If password
+authentication is rejected, the shared target authenticator retries with
+keyboard-interactive authentication using the same `DeviceCredentials.password`.
+It responds only to prompts explicitly identified as password prompts. This
+fallback does not affect Teleport/bastion authentication.
+
 Higher-level workflows must use `connect_device(...)` / `DeviceSession` and must not recreate OS-specific transport.
 
 ### SSH Host-Key Behaviour

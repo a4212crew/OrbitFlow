@@ -81,6 +81,13 @@ provided Teleport private key and certificate, opens a Paramiko `direct-tcpip`
 channel, and connects the target client over that channel. Resources are closed
 in reverse dependency order.
 
+For the target-device session on either operating system, normal Paramiko
+password authentication remains the first attempt. If it is rejected and the
+server supports keyboard-interactive authentication, OrbitFlow retries using
+the same `DeviceCredentials.password`. The handler answers only prompts whose
+text identifies them as password prompts; it rejects unrelated challenges such
+as OTP prompts. Teleport and bastion authentication are unchanged.
+
 Host-key verification is independently configurable for the Linux bastion and
 the target device. Both `verify_bastion_host_key` and
 `verify_device_host_key` default to `False`, matching the permissive host-key
