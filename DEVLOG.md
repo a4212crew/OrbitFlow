@@ -43,6 +43,37 @@ Use this file as the durable record of meaningful repository changes.
 - Both validated paths can establish an interactive Cisco CLI session, dynamically detect the prompt, disable paging, run `show version`, and return cleaned command output.
 - Detailed transport rules are maintained in `.agents/skills/jumphost-connectivity/SKILL.md`.
 
+### 2026-09-20 — Reusable Cisco IOS/IOS-XE interactive CLI
+
+**Objective**
+- Provide prompt-aware, reusable command execution above the existing device transport.
+
+**Prompt / Request**
+- Detect IOS prompts dynamically, disable paging, clean command output, and enforce read timeouts.
+
+**Relevant skills**
+- `.agents/skills/cisco-network-cli/SKILL.md`
+
+**Files changed**
+- `src/orbitflow/vendors/cisco/ios.py`, `src/orbitflow/vendors/cisco/__init__.py`
+- `tests/test_cisco_ios_cli.py`, `README.md`, `DEVLOG.md`
+
+**Implementation**
+- Added an IOS/IOS-XE-specific interactive CLI that consumes `DeviceSession` without changing transport.
+- Prompt reads use channel timeouts and monotonic deadlines rather than fixed sleeps.
+- Paging is disabled at initialization and command echo, ANSI control sequences, and the trailing prompt are removed from results.
+- Live validation found that a stale prompt could complete a newly sent command before its response arrived; command reads now synchronize on the command echo before accepting the final prompt.
+
+**Validation / Tests**
+- Unit coverage includes `#` and `>` prompt detection, paging setup and command execution, timeout behavior, dynamic prompt changes, and output cleaning.
+- Added regression coverage for a stale prompt arriving before the paging command echo.
+
+**Known issues / Limitations**
+- The implementation is intentionally limited to IOS/IOS-XE; IOS-XR requires a separate CLI implementation.
+
+**Next step**
+- Integrate the CLI with a separately scoped Cisco collection workflow.
+
 ### 2026-09-20 — Standardized permissive host-key defaults
 
 **Objective**
