@@ -12,6 +12,7 @@ from orbitflow.vendors.cisco.interfaces import (
 from orbitflow.vendors.cisco.ios import extract_ios_hostname
 from orbitflow.vendors.huawei.interfaces import (
     extract_huawei_hostname,
+    parse_interface_brief,
     parse_interface_description,
 )
 from orbitflow.vendors.ubiquiti.interfaces import extract_edgeswitch_hostname
@@ -276,6 +277,110 @@ def test_huawei_phy_normalization_distinguishes_physical_and_admin_down():
         ("up", "down"),
         ("down", "down"),
     ]
+
+
+def test_huawei_parses_live_two_column_description_output_and_subinterfaces():
+    records = parse_interface_description(
+        "Interface                   Description\n"
+        "Eth0/0/0                    HUAWEI, Ethernet0/0/0 Interface\n"
+        "GE0/2/4                     Uplink AF60 to T-STKI-ASCEN-RTR1\n"
+        "GE0/2/8.2434                SUPERLOOP1-PPPOE"
+    )
+
+    assert [item.port_name for item in records] == [
+        "Eth0/0/0",
+        "GE0/2/4",
+        "GE0/2/8.2434",
+    ]
+    assert [item.port_description for item in records] == [
+        "HUAWEI, Ethernet0/0/0 Interface",
+        "Uplink AF60 to T-STKI-ASCEN-RTR1",
+        "SUPERLOOP1-PPPOE",
+    ]
+    assert [(item.admin_status, item.oper_status) for item in records] == [
+        ("", ""),
+        ("", ""),
+        ("", ""),
+    ]
+
+
+def test_huawei_two_column_collection_joins_approved_brief_status_by_name():
+    description_output = (
+        "Interface                   Description\r\n"
+        "Eth0/0/0                    HUAWEI, Ethernet0/0/0 Interface\r\n"
+        "GE0/2/4                     Uplink AF60 to T-STKI-ASCEN-RTR1\r\n"
+        "GE0/2/8.2434                SUPERLOOP1-PPPOE"
+    )
+    brief_output = (
+        "Interface                   PHY   Protocol InUti OutUti inErrors outErrors\r\n"
+        "Eth0/0/0                    up    up       0%    0%     0        0\r\n"
+        "GE0/2/4                     down  down     0%    0%     0        0\r\n"
+        "GE0/2/8.2434                *down down     --    --     0        0"
+    )
+    prompt = CASES["huawei_vrp"]["prompt"]
+    paging = CASES["huawei_vrp"]["paging"]
+    description_command = CASES["huawei_vrp"]["command"]
+    session, channel = make_session(
+        [
+            prompt.encode(),
+            f"{paging}\r\n\r\n{prompt}".encode(),
+            f"{description_command}\r\n{description_output}\r\n{prompt}".encode(),
+            f"display interface brief\r\n{brief_output}\r\n{prompt}".encode(),
+        ]
+    )
+
+    records = InterfaceService().collect(
+        session, device_ip="192.0.2.10", platform="huawei_vrp"
+    )
+
+    assert [item.port_name for item in records] == [
+        "Eth0/0/0",
+        "GE0/2/4",
+        "GE0/2/8.2434",
+    ]
+    assert [(item.admin_status, item.oper_status) for item in records] == [
+        ("up", "up"),
+        ("up", "down"),
+        ("down", "down"),
+    ]
+    assert channel.sent == [
+        b"\n",
+        b"screen-length 0 temporary\n",
+        b"display interface description\n",
+        b"display interface brief\n",
+    ]
+
+
+def test_huawei_brief_parser_remains_strict_for_unexpected_rows():
+    with pytest.raises(ValueError, match="unrecognized Huawei interface brief row"):
+        parse_interface_brief(
+            "Interface PHY Protocol InUti OutUti inErrors outErrors\n"
+            "GE0/2/4 up up unexpected"
+        )
+
+
+def test_huawei_two_column_collection_requires_matching_brief_status():
+    prompt = CASES["huawei_vrp"]["prompt"]
+    paging = CASES["huawei_vrp"]["paging"]
+    command = CASES["huawei_vrp"]["command"]
+    session, _channel = make_session(
+        [
+            prompt.encode(),
+            f"{paging}\r\n\r\n{prompt}".encode(),
+            f"{command}\r\nInterface Description\r\nGE0/2/8.2434  SUPERLOOP1-PPPOE\r\n{prompt}".encode(),
+            (
+                "display interface brief\r\n"
+                "Interface PHY Protocol InUti OutUti inErrors outErrors\r\n"
+                "GE0/2/4 up up 0% 0% 0 0\r\n"
+                f"{prompt}"
+            ).encode(),
+        ]
+    )
+
+    with pytest.raises(InterfaceCapabilityError, match="omitted description interface"):
+        InterfaceService().collect(
+            session, device_ip="192.0.2.10", platform="huawei_vrp"
+        )
 
 
 @pytest.mark.parametrize(
