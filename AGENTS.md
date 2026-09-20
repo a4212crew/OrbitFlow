@@ -143,25 +143,33 @@ Read only:
 When modifying this repository:
 
 1. Read this `AGENTS.md` first.
-2. Identify the relevant skill(s); do not load every skill unnecessarily.
-3. Preserve the validated transport architecture.
-4. Do not bypass provisioning safety rules.
-5. Do not log or hardcode credentials.
-6. Keep vendor-specific behaviour isolated.
-7. Preserve existing working behaviour unless the task explicitly changes it.
-8. Add or update tests for changed deterministic logic.
-9. Keep existing CLI behaviour stable unless the task explicitly changes it.
-10. Update `DEVLOG.md` after completing a meaningful task.
-11. Do not silently redesign architecture outside the requested scope.
-12. If a requested change conflicts with these rules, surface the conflict before implementing it.
+2. Read `CURRENT_STATE.md` next for the concise current architecture and validation baseline.
+3. Identify the relevant skill(s); do not load every skill unnecessarily.
+4. Read historical files under `docs/devlog/` only when older implementation history is relevant to the task.
+5. Preserve the validated transport architecture.
+6. Do not bypass provisioning safety rules.
+7. Do not log or hardcode credentials.
+8. Keep vendor-specific behaviour isolated.
+9. Preserve existing working behaviour unless the task explicitly changes it.
+10. Add or update tests for changed deterministic logic.
+11. Keep existing CLI behaviour stable unless the task explicitly changes it.
+12. After a meaningful completed task, append the detailed record to the current monthly file `docs/devlog/YYYY-MM.md`.
+13. Update `CURRENT_STATE.md` only when the current architecture, validation baseline, supported behaviour, known limitations, or active development focus changes.
+14. Keep `DEVLOG.md` as an index only; add a new monthly link when a new monthly log file is created.
+15. Do not silently redesign architecture outside the requested scope.
+16. If a requested change conflicts with these rules, surface the conflict before implementing it.
 
 ## 12. Documentation Responsibilities
 
-- `AGENTS.md` — permanent architectural rules and skill routing.
+- `AGENTS.md` — permanent architectural rules, documentation workflow, and skill routing.
+- `CURRENT_STATE.md` — concise source of truth for what is implemented, validated, limited, and currently being developed.
 - `.agents/skills/*/SKILL.md` — task-specific or vendor-specific implementation knowledge.
-- `DEVLOG.md` — completed work, decisions, tests, known issues, and follow-up items.
+- `DEVLOG.md` — short index pointing to current state and historical monthly logs.
+- `docs/devlog/YYYY-MM.md` — detailed completed work, decisions, tests, known issues, and follow-up items for that month.
 - `ROADMAP.md` — future work and enhancement ideas.
 - `README.md` — operator/developer setup and usage.
 - dependency files — actual package requirements.
 
-When CLI usage, setup, dependencies, or operational behaviour changes, update the appropriate documentation instead of expanding `AGENTS.md` with task-specific detail.
+Do not duplicate long historical detail into `CURRENT_STATE.md` or `AGENTS.md`.
+
+When CLI usage, setup, dependencies, operational behaviour, architecture, validation status, or known limitations change, update the appropriate documentation using the responsibilities above.
