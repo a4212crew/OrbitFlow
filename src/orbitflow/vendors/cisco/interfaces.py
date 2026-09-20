@@ -24,12 +24,19 @@ class CiscoXRCLI(CiscoIOSCLI):
 
 
 def _state(value: str) -> str:
-    normalized = value.strip().lower()
+    normalized = value.strip().lower().replace("-", " ")
     if normalized in {"up", "down"}:
         return normalized
     if normalized in {"admin down", "administratively down"}:
         return "down"
     return normalized
+
+
+def _is_admin_down(value: str) -> bool:
+    return value.strip().lower().replace("-", " ") in {
+        "admin down",
+        "administratively down",
+    }
 
 
 def parse_interfaces_description(output: str) -> list[InterfaceObservation]:
@@ -49,9 +56,7 @@ def parse_interfaces_description(output: str) -> list[InterfaceObservation]:
             InterfaceObservation(
                 port_name=match.group("port"),
                 port_description=(match.group("description") or "").strip(),
-                admin_status="down"
-                if status.lower().startswith(("admin", "administratively"))
-                else "up",
+                admin_status="down" if _is_admin_down(status) else "up",
                 oper_status=_state(match.group("protocol")),
             )
         )

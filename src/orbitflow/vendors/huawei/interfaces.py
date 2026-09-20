@@ -34,13 +34,15 @@ def parse_interface_description(output: str) -> list[InterfaceObservation]:
         match = _ROW.match(line)
         if match is None:
             raise ValueError(f"unrecognized Huawei interface row: {line!r}")
-        phy = match.group("phy").lstrip("*").lower()
+        phy = match.group("phy").lower()
+        administratively_down = phy.startswith("*")
+        oper_status = phy.lstrip("*")
         records.append(
             InterfaceObservation(
                 port_name=match.group("port"),
                 port_description=(match.group("description") or "").strip(),
-                admin_status=phy,
-                oper_status=match.group("protocol").lower(),
+                admin_status="down" if administratively_down else "up",
+                oper_status=oper_status,
             )
         )
     if not records:

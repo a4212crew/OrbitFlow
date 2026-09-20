@@ -4,6 +4,8 @@ import pytest
 
 from orbitflow.capabilities import InterfaceCapabilityError, InterfaceService
 from orbitflow.transport import DeviceSession
+from orbitflow.vendors.cisco.interfaces import parse_interfaces_description
+from orbitflow.vendors.huawei.interfaces import parse_interface_description
 
 
 class FakeChannel:
@@ -193,3 +195,31 @@ def test_unsupported_platform_is_a_clear_capability_error():
             device_ip="192.0.2.20",
             platform="generic",
         )
+
+
+def test_huawei_phy_normalization_distinguishes_physical_and_admin_down():
+    records = parse_interface_description(
+        "Interface  PHY  Protocol  Description\n"
+        "GE0/0/0    up   down      Protocol differs\n"
+        "GE0/0/1    down up        Physical down\n"
+        "GE0/0/2    *down up       Administratively down"
+    )
+
+    assert [(item.admin_status, item.oper_status) for item in records] == [
+        ("up", "up"),
+        ("up", "down"),
+        ("down", "down"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "status", ["admin-down", "admin down", "administratively down"]
+)
+def test_cisco_xr_admin_down_spellings_normalize_to_down(status):
+    records = parse_interfaces_description(
+        "Interface  Status  Protocol  Description\n"
+        f"Gi0/0/0/0  {status}  down      Maintenance"
+    )
+
+    assert records[0].admin_status == "down"
+    assert records[0].oper_status == "down"
