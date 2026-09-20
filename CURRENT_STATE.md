@@ -65,7 +65,7 @@ Permissive mode uses Paramiko `AutoAddPolicy` without persisting learned keys.
 
 Strict verification remains configurable for future use. Custom Teleport CA verification is not implemented.
 
-### Cisco IOS / IOS-XE CLI
+### Interactive CLI and Interface Capability
 
 Implemented reusable `CiscoIOSCLI` above `DeviceSession`.
 
@@ -81,13 +81,21 @@ Current behaviour:
 
 Windows live-device validation passed against Cisco ASR920 `NSW-STLEON-21CANB-BAS1` running IOS XE 17.06.07. The validation confirmed correct prompt detection, paging disablement, complete `show version` output, clean output handling, stale-prompt fix, and clean session teardown.
 
-IOS-XR requires a separate future implementation.
+Implemented one reusable `InterfaceService` and normalized `InterfaceRecord` for
+Cisco IOS, IOS-XE, IOS-XR, Huawei VRP / NE05E, and Ubiquiti EdgeSwitch. Each
+platform has an isolated command/parser adapter, uses `DeviceSession`, disables
+paging with the approved platform command, and returns a clear error for a
+rejected setup or collection command. Empty command output produces an empty
+collection; unrecognized non-empty output is a parser failure. The capability
+does not guess fallback commands after a rejection.
 
 ## Repository Structure
 
 Current major implementation areas:
 - `src/orbitflow/transport/` — shared and OS-specific transport;
 - `src/orbitflow/vendors/cisco/` — Cisco IOS/IOS-XE CLI behaviour;
+- `src/orbitflow/vendors/huawei/` and `src/orbitflow/vendors/ubiquiti/` — vendor interface collection/parsing;
+- `src/orbitflow/capabilities/` and `src/orbitflow/models.py` — reusable capabilities and normalized records;
 - `tests/` — deterministic mocked/unit tests;
 - `.agents/skills/` — task/vendor-specific implementation guidance.
 
@@ -97,17 +105,18 @@ Current major implementation areas:
 - Linux transport: live validated.
 - Cisco IOS/IOS-XE interactive CLI on Windows: live validated.
 - Current automated test suite includes transport and Cisco CLI regression coverage.
+- Interface capability tests cover all five platform identifiers with deterministic fake sessions.
 
 ## Known Limitations
 
 - Current SSH host-key defaults are permissive and therefore do not provide MITM protection.
-- Cisco IOS-XR CLI support is not implemented.
 - Inventory and production collection workflows are not yet implemented.
+- Interface collection has not been live validated on IOS-XR, Huawei, or EdgeSwitch; untested output variants fail clearly instead of being guessed.
 - Live-device testing is integration validation and does not replace deterministic unit tests.
 
 ## Current Development Focus
 
-Build the interface-description collector as the first reusable device-capability/workflow pattern on top of the existing transport and Cisco IOS/IOS-XE CLI layers.
+Build inventory-driven collection, change tracking, and reporting on top of the reusable interface capability without duplicating its vendor logic.
 
 Expected flow:
 
