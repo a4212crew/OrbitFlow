@@ -87,3 +87,9 @@ def test_clean_output_removes_echo_prompt_and_terminal_control_sequences():
     assert clean_output(raw, "show clock", "router#") == (
         "*12:34:56.000 UTC Sun Sep 20 2026"
     )
+
+
+def test_clean_output_removes_prompt_prefixed_command_echo():
+    raw = "router#show version\r\nCisco IOS Software\r\nrouter#"
+
+    assert clean_output(raw, "show version", "router#") == "Cisco IOS Software"

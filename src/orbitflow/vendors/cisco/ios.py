@@ -41,7 +41,8 @@ def clean_output(output: str, command: str, prompt: str) -> str:
         lines.pop(0)
     while lines and not lines[-1].strip():
         lines.pop()
-    if lines and lines[0].strip() == command.strip():
+    command_echoes = (command.strip(), f"{prompt}{command}".strip())
+    if lines and lines[0].strip() in command_echoes:
         lines.pop(0)
     while lines and not lines[-1].strip():
         lines.pop()
