@@ -67,6 +67,9 @@ Use this file as the durable record of meaningful repository changes.
 **Validation / Tests**
 - Unit coverage includes `#` and `>` prompt detection, paging setup and command execution, timeout behavior, dynamic prompt changes, and output cleaning.
 - Added regression coverage for a stale prompt arriving before the paging command echo.
+- Windows live-device validation passed on Cisco ASR920 `NSW-STLEON-21CANB-BAS1` using IOS XE 17.06.07.
+- The live test confirmed correct prompt detection, successful `terminal length 0`, complete `show version` output, removal of the command echo and trailing prompt, and clean session teardown.
+- This live validation confirms the stale-prompt regression is fixed in the merged implementation.
 
 **Known issues / Limitations**
 - The implementation is intentionally limited to IOS/IOS-XE; IOS-XR requires a separate CLI implementation.
