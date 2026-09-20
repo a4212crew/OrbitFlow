@@ -1,172 +1,22 @@
-# DEVLOG.md — OrbitFlow Development Log
+# DEVLOG.md — OrbitFlow Development Log Index
 
-Use this file as the durable record of meaningful repository changes.
+This file is intentionally kept short.
 
-## Entry Template
+For the concise current implementation and validation baseline, read:
 
-### YYYY-MM-DD — <Task title>
+- `CURRENT_STATE.md`
 
-**Objective**
-- What the task was intended to achieve.
+For detailed historical development records, read only the month relevant to the task:
 
-**Prompt / Request**
-- Short summary of the Codex task or operator request.
+- `docs/devlog/2026-09.md` — initial transport, host-key behaviour, Cisco IOS/IOS-XE CLI, stale-prompt fix, and live validation.
 
-**Relevant skills**
-- `.agents/skills/<skill>/SKILL.md`
+## Logging Rule
 
-**Files changed**
-- `path/to/file`
+Do not append full development entries to this file.
 
-**Implementation**
-- What changed.
-- Important architectural decisions.
-- Compatibility considerations.
+For each meaningful completed task:
+1. append the detailed entry to `docs/devlog/YYYY-MM.md`;
+2. update `CURRENT_STATE.md` only when the current architecture, validation baseline, supported behaviour, limitations, or active development focus changes;
+3. add a new month link here only when a new monthly log file is created.
 
-**Validation / Tests**
-- Tests run.
-- Windows/Linux/live-device validation where applicable.
-- Results.
-
-**Known issues / Limitations**
-- Anything intentionally left unresolved.
-
-**Next step**
-- Recommended follow-up, if any.
-
----
-
-## Current Baseline
-
-- OrbitFlow supports a validated Windows Teleport local-port-forward transport.
-- OrbitFlow supports a validated Linux/Ubuntu Teleport `ProxyCommand` + SSH certificate + Paramiko `direct-tcpip` transport.
-- Both validated paths can establish an interactive Cisco CLI session, dynamically detect the prompt, disable paging, run `show version`, and return cleaned command output.
-- Detailed transport rules are maintained in `.agents/skills/jumphost-connectivity/SKILL.md`.
-
-### 2026-09-20 — Reusable Cisco IOS/IOS-XE interactive CLI
-
-**Objective**
-- Provide prompt-aware, reusable command execution above the existing device transport.
-
-**Prompt / Request**
-- Detect IOS prompts dynamically, disable paging, clean command output, and enforce read timeouts.
-
-**Relevant skills**
-- `.agents/skills/cisco-network-cli/SKILL.md`
-
-**Files changed**
-- `src/orbitflow/vendors/cisco/ios.py`, `src/orbitflow/vendors/cisco/__init__.py`
-- `tests/test_cisco_ios_cli.py`, `README.md`, `DEVLOG.md`
-
-**Implementation**
-- Added an IOS/IOS-XE-specific interactive CLI that consumes `DeviceSession` without changing transport.
-- Prompt reads use channel timeouts and monotonic deadlines rather than fixed sleeps.
-- Paging is disabled at initialization and command echo, ANSI control sequences, and the trailing prompt are removed from results.
-- Live validation found that a stale prompt could complete a newly sent command before its response arrived; command reads now synchronize on the command echo before accepting the final prompt.
-
-**Validation / Tests**
-- Unit coverage includes `#` and `>` prompt detection, paging setup and command execution, timeout behavior, dynamic prompt changes, and output cleaning.
-- Added regression coverage for a stale prompt arriving before the paging command echo.
-- Windows live-device validation passed on Cisco ASR920 `NSW-STLEON-21CANB-BAS1` using IOS XE 17.06.07.
-- The live test confirmed correct prompt detection, successful `terminal length 0`, complete `show version` output, removal of the command echo and trailing prompt, and clean session teardown.
-- This live validation confirms the stale-prompt regression is fixed in the merged implementation.
-
-**Known issues / Limitations**
-- The implementation is intentionally limited to IOS/IOS-XE; IOS-XR requires a separate CLI implementation.
-
-**Next step**
-- Integrate the CLI with a separately scoped Cisco collection workflow.
-
-### 2026-09-20 — Standardized permissive host-key defaults
-
-**Objective**
-- Standardize the validated Windows and Linux behavior while retaining configurable strict verification.
-
-**Prompt / Request**
-- Default bastion and target-device verification to permissive handling, remove Teleport-specific known-host loading, and do not implement custom Teleport CA verification.
-
-**Relevant skills**
-- `.agents/skills/jumphost-connectivity/SKILL.md`
-
-**Files changed**
-- `src/orbitflow/transport/models.py`, `src/orbitflow/transport/linux.py`
-- `tests/test_transport.py`, `README.md`, `DEVLOG.md`
-
-**Implementation**
-- Both `verify_bastion_host_key` and `verify_device_host_key` now default to `False`, using Paramiko's permissive `AutoAddPolicy` without persisting learned keys.
-- Removed the attempted `~/.tsh/known_hosts` loading; no custom Teleport CA verification is implemented.
-- Configurable strict mode remains available and loads normal system host keys with `RejectPolicy`.
-- The Windows local-forward architecture and Linux `tsh proxy ssh` plus `direct-tcpip` architecture are unchanged.
-
-**Validation / Tests**
-- Windows and Linux live validation succeeded using permissive host-key handling.
-- Added mocked coverage for permissive defaults and the retained Linux strict bastion mode.
-
-**Known issues / Limitations**
-- Permissive verification does not protect against machine-in-the-middle attacks.
-
-**Next step**
-- Provision trusted system host keys and enable strict verification where operationally practical.
-
-### 2026-09-20 — Configurable SSH host-key verification
-
-**Objective**
-- Allow bastion and target host-key verification to be configured independently.
-
-**Prompt / Request**
-- Preserve strict verification when enabled, while allowing unknown keys without a `known_hosts` prerequisite when disabled.
-
-**Relevant skills**
-- `.agents/skills/jumphost-connectivity/SKILL.md`
-
-**Files changed**
-- `src/orbitflow/transport/models.py`, `src/orbitflow/transport/linux.py`, `src/orbitflow/transport/windows.py`
-- `tests/test_transport.py`, `README.md`, `DEVLOG.md`
-
-**Implementation**
-- Added independently configurable Linux bastion and target-device verification settings.
-- Both Windows and Linux target connections honor the device setting without changing either validated Teleport path.
-- Strict mode loads system host keys and rejects unknown keys; permissive mode accepts unknown keys without loading `known_hosts`. Both settings now default to permissive handling as recorded above.
-
-**Validation / Tests**
-- Added mocked coverage for enabled and disabled verification on the Linux bastion and on Windows/Linux target devices.
-
-**Known issues / Limitations**
-- Permissive verification does not protect against machine-in-the-middle attacks and should only be used when trusted host keys cannot be provisioned.
-
-**Next step**
-- Provision trusted target host keys and enable strict device verification where operationally practical.
-
-### 2026-09-20 — Initial Python transport layer
-
-**Objective**
-- Provide one common device connection API over the validated Windows and Linux Teleport paths.
-
-**Prompt / Request**
-- Implement transport only, with mocked tests, safe cleanup, and no login/OTP automation.
-
-**Relevant skills**
-- `.agents/skills/jumphost-connectivity/SKILL.md`
-
-**Files changed**
-- `src/orbitflow/transport/*`, `src/orbitflow/__init__.py`, `tests/test_transport.py`
-- `requirements.txt`, `README.md`, `.gitignore`, `DEVLOG.md`
-
-**Implementation**
-- Added `connect_device`, OS-specific Windows and Linux backends, typed settings, an owned session, and transport exceptions.
-- Windows uses a temporary `tsh ssh -N -L` process; Linux uses `tsh proxy ssh`, Teleport key plus certificate, and `direct-tcpip`.
-- Rejects unknown SSH host keys and closes resources on success and failure paths.
-- Uses the target address, rather than the loopback forward address, for Windows SSH host-key lookup.
-- Classifies Linux identity, proxy, and bastion failures as Teleport errors without exposing underlying authentication details.
-
-**Validation / Tests**
-- `PYTHONPATH=src pytest -q` passes 6 mock-only tests for both OS paths.
-- `ruff check src tests`, `ruff format --check src tests`, `python -m compileall -q src`, and `git diff --check` pass.
-
-**Known issues / Limitations**
-- No live-device validation was performed.
-- Linux callers must discover and supply key/certificate paths from their active `tsh` profile.
-- An authenticated `tsh` session and pre-populated system known-hosts entries are prerequisites.
-
-**Next step**
-- Integrate an approved credential provider and active-profile path discovery in a separately scoped task.
+Historical logs are reference material and should not be read from top to bottom unless the task requires that history.
