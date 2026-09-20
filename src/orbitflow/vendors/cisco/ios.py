@@ -11,6 +11,11 @@ from orbitflow.transport import DeviceSession
 
 _ANSI_ESCAPE = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 _PROMPT = re.compile(r"(?m)^([^\r\n]+[>#])[ \t]*$")
+_REJECTED_COMMAND = re.compile(
+    r"(?:%\s*(?:Invalid input|Unknown command|Unrecognized command|Incomplete command)|"
+    r"\^\s*$)",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 
 class CiscoIOSCLIError(Exception):
@@ -71,7 +76,11 @@ class CiscoIOSCLI:
         self._channel: Any = session.invoke_shell()
         self._channel.sendall(b"\n")
         _, self.prompt = self._read_until_prompt(timeout)
-        self.run_command("terminal length 0", timeout=timeout)
+        setup_output = self.run_command("terminal length 0", timeout=timeout)
+        if _REJECTED_COMMAND.search(setup_output):
+            raise CiscoIOSCLIError(
+                "IOS/IOS-XE rejected required session setup command 'terminal length 0'"
+            )
 
     def _read_until_prompt(
         self,
