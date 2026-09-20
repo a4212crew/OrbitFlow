@@ -97,6 +97,29 @@ The caller is responsible for obtaining target credentials from an approved
 secret provider and for discovering the active Teleport identity paths. Passwords,
 private keys, and OTPs must not be logged or committed.
 
+## Single-device interface live validation
+
+`scripts/live_validate_interfaces.py` is a small integration utility for checking
+the existing interface capability against one live device. It accepts existing
+`DeviceCredentials` and `TransportConfig` objects, calls the shared transport and
+`InterfaceService`, and prints only normalized interface fields. It does not read
+inventory or implement a production collection workflow.
+
+```python
+from scripts.live_validate_interfaces import run_live_validation
+
+records = run_live_validation(
+    device_host,
+    platform,
+    credentials,
+    transport_config,
+    device_name="edge-01",  # Optional; defaults to device_host.
+)
+```
+
+Obtain credentials and configuration through the approved operator-side secret
+and Teleport-profile mechanisms; do not place secret values in the script.
+
 ## Tests
 
 The suite uses mocks and does not contact Teleport or network devices:
