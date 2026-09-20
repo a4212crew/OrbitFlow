@@ -33,16 +33,27 @@ Keep platform mapping configurable.
 Keep the codebase modular. Separate:
 - transport and jumphost connectivity;
 - inventory/input handling;
-- task workflows;
+- reusable device capabilities;
 - vendor-specific CLI behaviour;
-- parsers and normalization;
+- parsers and normalized models;
+- analysis and decision logic;
+- task/workflow orchestration;
 - output/reporting;
-- configuration generation and verification;
+- configuration planning, application, and verification;
+- integration/API layers;
 - tests.
 
 Avoid large monolithic scripts when a reusable module boundary is practical.
 
 Higher-level workflows must not implement their own independent SSH/jumphost logic.
+
+OrbitFlow is being designed as both a network automation platform and a future OSS capability layer. Device capability logic must be implemented once and reused by internal workflows and external integrations.
+
+Internal workflows, REST endpoints, future GUIs, schedulers, and OSS/BSS integrations must consume the same application/capability interfaces rather than duplicating vendor-specific device logic.
+
+For the architectural model, read:
+
+`docs/architecture/device-capability-oss-model.md`
 
 ## 5. Transport Architecture
 
@@ -72,7 +83,19 @@ For detailed inventory rules, load:
 
 `.agents/skills/excel-inventory/SKILL.md`
 
-## 7. Collection Principle
+## 7. Device Capability and Collection Principles
+
+Reusable device capabilities are the primary building blocks for higher-level OrbitFlow features.
+
+Examples include interface state, VLAN state, MAC tables, routing state, service state, configuration planning, configuration application, and verification.
+
+Rules:
+- workflows should call reusable capabilities rather than embed raw vendor commands;
+- vendor commands and parsing remain isolated in vendor-specific modules;
+- raw CLI output should be normalized into structured models where practical;
+- analysis/decision logic should operate on normalized data rather than vendor-specific text;
+- observation, analysis, planning, apply, and verification should remain separable;
+- the same capability/service interfaces must remain usable by future REST API and OSS/BSS integrations.
 
 Collection workflows must acquire sessions through the OrbitFlow transport layer, use vendor-aware commands/parsing, normalize results into common records, isolate per-device failures, preserve tracking history, scale toward approximately 1,500 devices, and have tests for deterministic logic.
 
@@ -157,7 +180,9 @@ When modifying this repository:
 13. Update `CURRENT_STATE.md` only when the current architecture, validation baseline, supported behaviour, known limitations, or active development focus changes.
 14. Keep `DEVLOG.md` as an index only; add a new monthly link when a new monthly log file is created.
 15. Do not silently redesign architecture outside the requested scope.
-16. If a requested change conflicts with these rules, surface the conflict before implementing it.
+16. Keep API/integration code thin: it may validate/authenticate/serialize, but must not duplicate network-device logic already implemented in capabilities or workflows.
+17. Prefer intent/capability APIs over exposing raw vendor CLI as the primary external OSS interface.
+18. If a requested change conflicts with these rules, surface the conflict before implementing it.
 
 ## 12. Documentation Responsibilities
 
@@ -168,6 +193,7 @@ When modifying this repository:
 - `docs/devlog/YYYY-MM.md` — detailed completed work, decisions, tests, known issues, and follow-up items for that month.
 - `ROADMAP.md` — future work and enhancement ideas.
 - `README.md` — operator/developer setup and usage.
+- `docs/architecture/` — durable architectural models and design decisions that guide multiple features.
 - dependency files — actual package requirements.
 
 Do not duplicate long historical detail into `CURRENT_STATE.md` or `AGENTS.md`.
