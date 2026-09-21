@@ -73,7 +73,7 @@ Permissive mode uses Paramiko `AutoAddPolicy` without persisting learned keys.
 
 Strict verification remains configurable for future use. Custom Teleport CA verification is not implemented.
 
-### Interactive CLI and Interface Capability
+### Interactive CLI and Device Capabilities
 
 Implemented reusable `CiscoIOSCLI` above `DeviceSession`.
 
@@ -113,6 +113,19 @@ EdgeSwitch uses only `terminal length 0` and `show interfaces status all`; its
 parser supports the confirmed multi-line status header, blank names, short
 rows, and `(hostname) #` prompts while leaving unavailable admin state empty.
 
+Implemented reusable read-only `VlanService` for Cisco IOS, IOS-XE, IOS-XR,
+Huawei VRP, and Ubiquiti EdgeSwitch. It uses each platform's approved full
+running-configuration command through the existing prompt-aware session layer.
+The normalized snapshot separates interface VLAN references from VLAN,
+bridge-domain, and service identities. Vendor adapters preserve classic
+switchport/database, IOS-XE EVC, IOS-XR subinterface/L2VPN, Huawei
+VLAN/Vlanif/dot1q/VSI, and EdgeSwitch participation/PVID/tagging semantics.
+IOS-XE and IOS-XR bridge domains and Huawei VSIs are normalized as equivalent
+service objects without treating their identity as a VLAN ID. IOS-XR L2VPN
+bindings preserve hierarchy and routed BVI membership, while Huawei termination
+observations retain both control VID and dot1q termination VID facts.
+Observation performs no consistency or compliance decisions.
+
 `scripts/live_validate_interfaces.py` provides a deliberately limited
 single-device integration entry point for live validation of this existing
 capability. It accepts caller-supplied credentials and `TransportConfig`, prints
@@ -124,7 +137,7 @@ Current major implementation areas:
 - `src/orbitflow/transport/` — shared and OS-specific transport;
 - `src/orbitflow/vendors/cisco/` — Cisco IOS/IOS-XE CLI behaviour;
 - `src/orbitflow/vendors/huawei/` and `src/orbitflow/vendors/ubiquiti/` — vendor interface collection/parsing;
-- `src/orbitflow/capabilities/` and `src/orbitflow/models.py` — reusable capabilities and normalized records;
+- `src/orbitflow/capabilities/` and `src/orbitflow/models.py` — reusable interface/VLAN capabilities and normalized records;
 - `scripts/live_validate_interfaces.py` — single-device interface integration validation;
 - `tests/` — deterministic mocked/unit tests;
 - `.agents/skills/` — task/vendor-specific implementation guidance.
@@ -137,6 +150,7 @@ Current major implementation areas:
 - Current automated test suite includes transport and Cisco CLI regression coverage.
 - Interface capability tests cover all five platform identifiers with deterministic fake sessions.
 - Interface capability has now been live validated on Cisco IOS, Cisco IOS-XE, Cisco IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch.
+- VLAN observation has deterministic parser and command-selection coverage for all five platform identifiers; it has not yet been live validated.
 
 ## Known Limitations
 
@@ -146,26 +160,9 @@ Current major implementation areas:
 
 ## Current Development Focus
 
-The next planned capability is read-only multi-vendor VLAN observation.
-
-The capability will answer:
-1. which VLANs are configured/referenced on each interface; and
-2. which VLANs exist in the device VLAN database or equivalent service construct.
-
-Vendor parsers must report observed facts only. A later mini-program/policy layer will perform consistency checking against the normalized VLAN state.
-
-Approved initial configuration sources:
-- Cisco IOS / IOS-XE: `show running-config`
-- Huawei VRP: `display current-configuration`
-- Ubiquiti EdgeSwitch: `show running-config`
-- Cisco IOS-XR: collection command still requires explicit approval before implementation.
-
-Important platform semantics:
-- Cisco IOS supports traditional access/trunk VLANs and VLAN database entries.
-- IOS-XE may use either classic switchport syntax or EVC/service-instance constructs.
-- IOS-XR must not be assumed to have a traditional VLAN database.
-- Huawei `port default vlan` / `port trunk allow-pass vlan` are database-backed, while `vlan-type dot1q` and `dot1q termination vid` service VLANs may validly exist outside `vlan batch`.
-- EdgeSwitch VLAN state comes from `vlan database`, PVID, participation, and tagging configuration.
+The read-only multi-vendor VLAN observation capability is implemented. A later
+analysis/policy layer may consume `VlanState` to perform explicit consistency
+checking; that policy is intentionally not part of observation.
 
 Relevant skills:
 - `.agents/skills/vlan-observation/SKILL.md`
