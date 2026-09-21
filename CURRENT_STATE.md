@@ -162,7 +162,10 @@ Current major implementation areas:
 - Current automated test suite includes transport and Cisco CLI regression coverage.
 - Interface capability tests cover all five platform identifiers with deterministic fake sessions.
 - Interface capability has now been live validated on Cisco IOS, Cisco IOS-XE, Cisco IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch.
-- VLAN observation has deterministic parser and command-selection coverage for all five platform identifiers; IOS-XE EVC parsing has been live validated on an ME3600X.
+- VLAN observation has deterministic parser and command-selection coverage for
+  all five platform identifiers. IOS-XE has been live tested on an ME3600X;
+  that test exposed bridge-domain modifier parsing, which PR #22 fixes. Final
+  IOS-XE VLAN/EVC live validation is pending a rerun after the fix.
 
 ## Known Limitations
 
