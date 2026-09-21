@@ -163,8 +163,16 @@ Current major implementation areas:
 - Interface capability tests cover all five platform identifiers with deterministic fake sessions.
 - Interface capability has now been live validated on Cisco IOS, Cisco IOS-XE, Cisco IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch.
 - VLAN observation has deterministic parser and command-selection coverage for
-  all five platform identifiers. Cisco IOS-XE VLAN observation is live validated
-  on the ME3600X at `10.251.10.50`, covering VLAN database entries and names,
+  all five platform identifiers. Cisco IOS VLAN observation is live validated
+  on the 3750X-class device `R-GEEL-MERCER-BCS1` at `172.25.20.2`, covering VLAN
+  database discovery and names, access ports and non-default access VLANs, trunk
+  mode, native VLANs, explicit trunk allowed VLAN lists, absent allowed-list
+  behavior, VLAN list/range expansion, and interface descriptions. Validation
+  also confirms the observation/policy boundary: the observer retains VLANs
+  referenced on an interface even when they are absent from the observed VLAN
+  database, without making a compliance decision. Cisco IOS-XE VLAN observation
+  is live validated on the ME3600X at `10.251.10.50`, covering VLAN database
+  entries and names,
   access VLANs, trunk allowed VLAN lists (including explicit `none`), VLAN range
   expansion, EVC dot1q and untagged encapsulations, multiple service instances
   per interface, and bridge-domain discovery/binding. Validation also confirms
