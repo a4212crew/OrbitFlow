@@ -132,7 +132,7 @@ def _evc(
     encap = next((x for x in lines if x.startswith("encapsulation dot1q ")), "")
     bridge = next((x for x in lines if x.startswith("bridge-domain ")), "")
     vlan = int(encap.split()[2]) if encap and encap.split()[2].isdigit() else None
-    bridge_name = bridge.split(maxsplit=1)[1] if bridge else ""
+    bridge_name = bridge.split()[1] if bridge else ""
     return (
         InterfaceVlanObservation(
             name,

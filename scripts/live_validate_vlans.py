@@ -55,7 +55,7 @@ def _format_value(value: object) -> str:
     if value is None:
         return "-"
     if isinstance(value, tuple):
-        return ",".join(str(item) for item in value) or "-"
+        return ",".join(str(item) for item in value) or "[]"
     if value == "":
         return "-"
     return str(value)

@@ -121,7 +121,9 @@ bridge-domain, and service identities. Vendor adapters preserve classic
 switchport/database, IOS-XE EVC, IOS-XR subinterface/L2VPN, Huawei
 VLAN/Vlanif/dot1q/VSI, and EdgeSwitch participation/PVID/tagging semantics.
 IOS-XE and IOS-XR bridge domains and Huawei VSIs are normalized as equivalent
-service objects without treating their identity as a VLAN ID. IOS-XR L2VPN
+service objects without treating their identity as a VLAN ID. IOS-XE EVC
+bridge-domain modifiers such as split-horizon settings are excluded from that
+identity. IOS-XR L2VPN
 bindings preserve hierarchy and routed BVI membership, including interface
 descriptions from bound interface blocks that have no encapsulation statement,
 without deriving VLAN IDs from interface names. Huawei termination
@@ -160,7 +162,10 @@ Current major implementation areas:
 - Current automated test suite includes transport and Cisco CLI regression coverage.
 - Interface capability tests cover all five platform identifiers with deterministic fake sessions.
 - Interface capability has now been live validated on Cisco IOS, Cisco IOS-XE, Cisco IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch.
-- VLAN observation has deterministic parser and command-selection coverage for all five platform identifiers; it has not yet been live validated.
+- VLAN observation has deterministic parser and command-selection coverage for
+  all five platform identifiers. IOS-XE has been live tested on an ME3600X;
+  that test exposed bridge-domain modifier parsing, which PR #22 fixes. Final
+  IOS-XE VLAN/EVC live validation is pending a rerun after the fix.
 
 ## Known Limitations
 

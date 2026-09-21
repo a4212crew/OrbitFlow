@@ -109,21 +109,26 @@ def test_ios_explicit_trunk_allowed_none_is_an_empty_vlan_set():
     assert interfaces[0].referenced_vlans == ()
 
 
-def test_ios_xe_evc_keeps_vlan_and_bridge_domain_separate():
+@pytest.mark.parametrize(
+    "bridge_domain_command",
+    ["bridge-domain 746", "bridge-domain 746 split-horizon group 0"],
+)
+def test_ios_xe_evc_keeps_vlan_and_bridge_domain_separate(bridge_domain_command):
     interfaces, objects = parse_ios_running_config(
-        """interface GigabitEthernet0/0/0
+        f"""interface GigabitEthernet0/0/0
  service instance 44 ethernet
   encapsulation dot1q 445
-  bridge-domain 900
+  {bridge_domain_command}
 !""",
         evc=True,
     )
     assert (interfaces[0].service_vlan, interfaces[0].service_binding_name) == (
         445,
-        "900",
+        "746",
     )
     assert objects[-1].object_type == "bridge-domain"
-    assert objects[-1].object_id == "900"
+    assert objects[-1].object_id == "746"
+    assert objects[-1].name == "746"
     assert objects[-1].vlan_ids == ()
 
 
