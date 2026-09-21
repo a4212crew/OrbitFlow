@@ -16,6 +16,9 @@ _REJECTED = re.compile(
     r"%\s*(?:Invalid input|Unknown command|Unrecognized command|Incomplete command)",
     re.I,
 )
+_IOS_VLAN_DECLARATION = re.compile(
+    r"vlan (?P<vlans>\d+(?:\s*-\s*\d+)?(?:[\s,]+\d+(?:\s*-\s*\d+)?)*)"
+)
 
 
 def _blocks(
@@ -49,9 +52,9 @@ def parse_ios_running_config(
     interfaces: list[InterfaceVlanObservation] = []
     objects: list[VlanObject] = []
     for heading, lines in _blocks(output):
-        vlan = re.fullmatch(r"vlan (.+)", heading)
+        vlan = _IOS_VLAN_DECLARATION.fullmatch(heading)
         if vlan:
-            vlan_ids = parse_vlan_list(vlan.group(1))
+            vlan_ids = parse_vlan_list(vlan.group("vlans"))
             name = next((x[5:] for x in lines if x.startswith("name ")), "")
             objects.extend(
                 VlanObject(
@@ -79,9 +82,13 @@ def parse_ios_running_config(
             mode = mode_line.rsplit(" ", 1)[-1] if mode_line else "unknown"
             access_id = int(access.rsplit(" ", 1)[-1]) if access else None
             native_id = int(native.rsplit(" ", 1)[-1]) if native else None
-            allowed_ids = (
-                parse_vlan_list(allowed.split("vlan ", 1)[1]) if allowed else None
-            )
+            allowed_value = allowed.split("vlan ", 1)[1] if allowed else None
+            if allowed_value == "none":
+                allowed_ids = ()
+            elif allowed_value is not None:
+                allowed_ids = parse_vlan_list(allowed_value)
+            else:
+                allowed_ids = None
             refs = (
                 set(allowed_ids or ())
                 | ({access_id} if access_id else set())

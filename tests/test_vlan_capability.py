@@ -89,6 +89,26 @@ def test_ios_absent_allowed_list_remains_none():
     assert interfaces[0].allowed_vlans is None
 
 
+def test_ios_ignores_non_numeric_vlan_global_commands():
+    interfaces, objects = parse_ios_running_config(
+        """vlan internal allocation policy ascending
+!
+vlan 100,200-202
+!"""
+    )
+    assert interfaces == ()
+    assert tuple(obj.object_id for obj in objects) == ("100", "200", "201", "202")
+
+
+def test_ios_explicit_trunk_allowed_none_is_an_empty_vlan_set():
+    interfaces, _ = parse_ios_running_config("""interface GigabitEthernet0/1
+ switchport trunk allowed vlan none
+ switchport mode trunk
+!""")
+    assert interfaces[0].allowed_vlans == ()
+    assert interfaces[0].referenced_vlans == ()
+
+
 def test_ios_xe_evc_keeps_vlan_and_bridge_domain_separate():
     interfaces, objects = parse_ios_running_config(
         """interface GigabitEthernet0/0/0
