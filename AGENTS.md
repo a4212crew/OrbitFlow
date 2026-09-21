@@ -103,6 +103,12 @@ For interface collection work, load:
 
 `.agents/skills/interface-collector/SKILL.md`
 
+For VLAN observation work, load:
+
+`.agents/skills/vlan-observation/SKILL.md`
+
+VLAN observation capabilities must report configured facts only. Vendor parsers must not decide whether a VLAN configuration is compliant. Consistency/policy checks belong in a separate analysis layer consuming normalized VLAN state.
+
 ## 8. Provisioning Safety Principles
 
 Configuration-changing workflows are high-safety operational features.
@@ -156,6 +162,7 @@ Read only:
 | Teleport, jumphost, SSH transport, Paramiko transport | `.agents/skills/jumphost-connectivity/SKILL.md` |
 | Excel inventory input, validation, credential precedence | `.agents/skills/excel-inventory/SKILL.md` |
 | Interface description/status collection, parsing, change tracking | `.agents/skills/interface-collector/SKILL.md` |
+| VLAN observation, per-interface VLAN references, VLAN database/service objects | `.agents/skills/vlan-observation/SKILL.md` |
 | Access VLAN provisioning, dry-run/apply/verify, rollback evidence | `.agents/skills/access-vlan-provisioning/SKILL.md` |
 | Cisco IOS / IOS-XE / IOS-XR CLI behaviour | `.agents/skills/cisco-network-cli/SKILL.md` |
 | Huawei VRP CLI behaviour | `.agents/skills/huawei-network-cli/SKILL.md` |
