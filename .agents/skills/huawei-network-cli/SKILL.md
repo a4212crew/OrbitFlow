@@ -11,6 +11,7 @@ Use for Huawei VRP-specific commands, parsing assumptions, configuration generat
 
 Also use:
 - `../interface-collector/SKILL.md`
+- `../vlan-observation/SKILL.md`
 - `../access-vlan-provisioning/SKILL.md`
 
 Do not implement Teleport transport here.
@@ -78,3 +79,27 @@ Verification should confirm interface/service existence, matching description, r
 - Do not silently switch to QinQ or L2VPN service models.
 - Future QinQ/L2VPN models must be explicit actions.
 - Rollback must rely on captured pre-change configuration; never guess previous VLAN state.
+
+
+## VLAN Observation
+
+Approved read-only configuration source:
+
+```text
+display current-configuration
+```
+
+Traditional switched VLANs use `vlan batch` as the VLAN database. Parse:
+- `port default vlan <id>` for access membership;
+- `port trunk allow-pass vlan ...` for trunk membership;
+- `Vlanif<id>` as a VLAN interface where applicable.
+
+Service/routed subinterfaces must not be judged by `vlan batch` membership. Parse:
+- `vlan-type dot1q <id>`;
+- `control-vid <id> dot1q-termination`;
+- `dot1q termination vid <id>`;
+- `l2 binding vsi <name>`.
+
+VLANs referenced by `vlan-type dot1q` or `dot1q termination vid` are valid observed service VLANs even when absent from `vlan batch`.
+
+Keep VSI identity separate from VLAN identity; never assume a VSI ID/name equals the VLAN ID.
