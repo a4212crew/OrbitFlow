@@ -136,35 +136,39 @@ Current major implementation areas:
 - Cisco IOS/IOS-XE interactive CLI on Windows: live validated.
 - Current automated test suite includes transport and Cisco CLI regression coverage.
 - Interface capability tests cover all five platform identifiers with deterministic fake sessions.
+- Interface capability has now been live validated on Cisco IOS, Cisco IOS-XE, Cisco IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch.
 
 ## Known Limitations
 
 - Current SSH host-key defaults are permissive and therefore do not provide MITM protection.
 - Inventory and production collection workflows are not yet implemented.
-- Interface collection has not been end-to-end live validated by the automated
-  suite on IOS-XR, Huawei, or EdgeSwitch; EdgeSwitch parsing is covered against
-  confirmed captured live output, and untested output variants fail clearly
-  instead of being guessed.
 - Live-device testing is integration validation and does not replace deterministic unit tests.
 
 ## Current Development Focus
 
-Build inventory-driven collection, change tracking, and reporting on top of the reusable interface capability without duplicating its vendor logic.
+The next planned capability is read-only multi-vendor VLAN observation.
 
-Expected flow:
+The capability will answer:
+1. which VLANs are configured/referenced on each interface; and
+2. which VLANs exist in the device VLAN database or equivalent service construct.
 
-```text
-Inventory
-  -> connect_device / DeviceSession
-  -> reusable interface capability
-  -> vendor CLI + vendor parser
-  -> normalized interface records
-  -> workflow analysis / change tracking
-  -> reporting
-  -> future REST/API exposure through the same capability/service interface
-```
+Vendor parsers must report observed facts only. A later mini-program/policy layer will perform consistency checking against the normalized VLAN state.
+
+Approved initial configuration sources:
+- Cisco IOS / IOS-XE: `show running-config`
+- Huawei VRP: `display current-configuration`
+- Ubiquiti EdgeSwitch: `show running-config`
+- Cisco IOS-XR: collection command still requires explicit approval before implementation.
+
+Important platform semantics:
+- Cisco IOS supports traditional access/trunk VLANs and VLAN database entries.
+- IOS-XE may use either classic switchport syntax or EVC/service-instance constructs.
+- IOS-XR must not be assumed to have a traditional VLAN database.
+- Huawei `port default vlan` / `port trunk allow-pass vlan` are database-backed, while `vlan-type dot1q` and `dot1q termination vid` service VLANs may validly exist outside `vlan batch`.
+- EdgeSwitch VLAN state comes from `vlan database`, PVID, participation, and tagging configuration.
 
 Relevant skills:
-- `.agents/skills/interface-collector/SKILL.md`
-- `.agents/skills/excel-inventory/SKILL.md`
+- `.agents/skills/vlan-observation/SKILL.md`
 - `.agents/skills/cisco-network-cli/SKILL.md`
+- `.agents/skills/huawei-network-cli/SKILL.md`
+- `.agents/skills/ubiquiti-network-cli/SKILL.md`
