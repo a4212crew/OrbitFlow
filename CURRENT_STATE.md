@@ -163,7 +163,9 @@ Current major implementation areas:
 - Interface capability tests cover all five platform identifiers with deterministic fake sessions.
 - Interface capability has now been live validated on Cisco IOS, Cisco IOS-XE, Cisco IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch.
 - VLAN observation has deterministic parser and command-selection coverage for
-  all five platform identifiers. Cisco IOS VLAN observation is live validated
+  all five platform identifiers and is now live validated across all five
+  supported platforms: Cisco IOS, Cisco IOS-XE, Cisco IOS-XR, Huawei VRP, and
+  Ubiquiti EdgeSwitch. Cisco IOS VLAN observation is live validated
   on the 3750X-class device `R-GEEL-MERCER-BCS1` at `172.25.20.2`, covering VLAN
   database discovery and names, access ports and non-default access VLANs, trunk
   mode, native VLANs, explicit trunk allowed VLAN lists, absent allowed-list
@@ -187,7 +189,15 @@ Current major implementation areas:
   confirms that VSI identity remains separate from VLAN identity and that VLAN
   identity is not inferred from VSI names. The live device used matching
   control VID and termination VLAN values; differing values remain covered by
-  regression tests rather than this live validation.
+  regression tests rather than this live validation. Ubiquiti EdgeSwitch VLAN
+  observation is live validated on `R-ELST-TMARK-BAS8` at `10.125.13.138`,
+  covering the VLAN database and VLAN ranges, VLAN names, `vlan pvid`, `vlan
+  participation include`, `vlan participation exclude`, and `vlan tagging`.
+  The validation confirmed tagged and untagged/PVID normalization across both
+  physical and LAG interfaces, while preserving the observation/policy
+  separation. Live validation records only the constructs exercised on the
+  validation devices; other supported syntax remains covered only by
+  deterministic regression tests where previously noted.
 
 ## Known Limitations
 
