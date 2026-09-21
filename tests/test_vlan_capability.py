@@ -283,6 +283,47 @@ exit""")
     assert port.mode == "hybrid"
 
 
+def test_edgeswitch_non_indented_exit_delimited_live_configuration():
+    interfaces, objects = parse_edgeswitch_config("""vlan database
+vlan 445,545,1101,2400-2402
+vlan name 445 "Customer Access"
+vlan name 1101 'Customer Transport'
+exit
+interface 0/7
+description "Customer port"
+vlan pvid 445
+vlan participation include 445,1101
+vlan participation exclude 545
+vlan tagging 1101
+exit
+interface 0/8
+description 'Trunk to POP'
+vlan pvid 1
+vlan participation include 1,445,545,1101
+vlan tagging 1,445,545,1101
+exit
+interface lag 1
+description "No VLAN configuration"
+exit""")
+
+    assert [(obj.object_id, obj.name) for obj in objects] == [
+        ("445", "Customer Access"),
+        ("545", ""),
+        ("1101", "Customer Transport"),
+        ("2400", ""),
+        ("2401", ""),
+        ("2402", ""),
+    ]
+    assert len(interfaces) == 2
+    assert interfaces[0].description == "Customer port"
+    assert interfaces[0].mode == "hybrid"
+    assert interfaces[0].excluded_vlans == (545,)
+    assert interfaces[0].referenced_vlans == (445, 1101)
+    assert interfaces[1].description == "Trunk to POP"
+    assert interfaces[1].mode == "trunk"
+    assert interfaces[1].tagged_vlans == (1, 445, 545, 1101)
+
+
 CASES = {
     "cisco_ios": ("ios#", "terminal length 0", "show running-config", "vlan 10\n!"),
     "cisco_xe": ("xe#", "terminal length 0", "show running-config", "vlan 10\n!"),

@@ -17,6 +17,7 @@ def parse_edgeswitch_config(
     output: str,
 ) -> tuple[tuple[InterfaceVlanObservation, ...], tuple[VlanObject, ...]]:
     database: set[int] = set()
+    vlan_names: dict[int, str] = {}
     interfaces: list[InterfaceVlanObservation] = []
     lines = output.splitlines()
     index = 0
@@ -24,12 +25,18 @@ def parse_edgeswitch_config(
         heading = lines[index].strip()
         if heading == "vlan database":
             index += 1
-            while index < len(lines) and (
-                lines[index].startswith(" ") or lines[index].startswith("\t")
-            ):
+            while index < len(lines) and lines[index].strip() != "exit":
                 line = lines[index].strip()
                 if line.startswith("vlan "):
-                    database.update(parse_vlan_list(line[5:]))
+                    name_match = re.fullmatch(r"vlan name (\d+) ([\"'])(.*?)\2", line)
+                    if name_match:
+                        vlan_id = int(name_match.group(1))
+                        database.add(vlan_id)
+                        vlan_names[vlan_id] = name_match.group(3)
+                    else:
+                        database.update(parse_vlan_list(line[5:]))
+                index += 1
+            if index < len(lines):
                 index += 1
             continue
         match = re.fullmatch(r"interface (.+)", heading)
@@ -37,14 +44,22 @@ def parse_edgeswitch_config(
             name = match.group(1)
             body = []
             index += 1
-            while index < len(lines) and (
-                lines[index].startswith(" ") or lines[index].startswith("\t")
-            ):
+            while index < len(lines) and lines[index].strip() != "exit":
                 body.append(lines[index].strip())
                 index += 1
-            description = next(
-                (x[12:].strip('"') for x in body if x.startswith("description ")), ""
-            )
+            if index < len(lines):
+                index += 1
+            description = ""
+            for line in body:
+                if line.startswith("description "):
+                    description = line[12:].strip()
+                    if (
+                        len(description) >= 2
+                        and description[0] in "\"'"
+                        and description[-1] == description[0]
+                    ):
+                        description = description[1:-1]
+                    break
             pvid_line = next((x for x in body if x.startswith("vlan pvid ")), "")
             include = next(
                 (x for x in body if x.startswith("vlan participation include ")), ""
@@ -81,7 +96,10 @@ def parse_edgeswitch_config(
                 )
             continue
         index += 1
-    objects = tuple(VlanObject("vlan", str(v), vlan_ids=(v,)) for v in sorted(database))
+    objects = tuple(
+        VlanObject("vlan", str(v), vlan_names.get(v, ""), (v,))
+        for v in sorted(database)
+    )
     return tuple(interfaces), objects
 
 
