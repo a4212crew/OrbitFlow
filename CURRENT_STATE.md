@@ -122,7 +122,9 @@ switchport/database, IOS-XE EVC, IOS-XR subinterface/L2VPN, Huawei
 VLAN/Vlanif/dot1q/VSI, and EdgeSwitch participation/PVID/tagging semantics.
 IOS-XE and IOS-XR bridge domains and Huawei VSIs are normalized as equivalent
 service objects without treating their identity as a VLAN ID. IOS-XR L2VPN
-bindings preserve hierarchy and routed BVI membership, while Huawei termination
+bindings preserve hierarchy and routed BVI membership, including interface
+descriptions from bound interface blocks that have no encapsulation statement,
+without deriving VLAN IDs from interface names. Huawei termination
 observations retain both control VID and dot1q termination VID facts.
 Observation performs no consistency or compliance decisions.
 
@@ -132,7 +134,9 @@ capability. It accepts caller-supplied credentials and `TransportConfig`, prints
 normalized records, and does not implement inventory or production collection.
 
 `scripts/live_validate_vlans.py` provides the equivalent single-device,
-operator-prompted integration harness for `VlanService`. It prints normalized
+operator-prompted integration harness for `VlanService`. Its current target and
+non-secret Teleport routing defaults are grouped at the top of the script; a
+direct invocation prompts only for the device password. It prints normalized
 VLAN/service objects and interface observations for manual comparison; its
 existence does not constitute live validation of the VLAN capability.
 

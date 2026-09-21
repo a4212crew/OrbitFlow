@@ -31,6 +31,25 @@ SUPPORTED_PLATFORMS = (
     "ubiquiti_edgeswitch",
 )
 
+# Deliberately grouped here so the single-device validation target remains easy
+# to replace without changing the reusable validation function below.
+DEVICE_HOST = "10.251.10.98"
+DEVICE_PLATFORM = "cisco_xr"
+DEVICE_USERNAME = "lightningadmin"
+TELEPORT_PROXY = "teleport.lynhamnetworks.au:443"
+TELEPORT_CLUSTER = "lynhamcluster"
+BASTION_HOST = "bastion-lyn-dc1-vic"
+BASTION_USER = "lightningadmin"
+
+
+def _linux_teleport_identity_paths() -> tuple[Path | None, Path | None]:
+    """Return conventional active-profile identity paths on Linux."""
+    if host_platform.system().lower() != "linux":
+        return None, None
+    proxy_host = TELEPORT_PROXY.rsplit(":", 1)[0]
+    key_path = Path.home() / ".tsh" / "keys" / proxy_host / BASTION_USER
+    return key_path, key_path.with_name(f"{key_path.name}-cert.pub")
+
 
 def _format_value(value: object) -> str:
     if value is None:
@@ -95,39 +114,20 @@ def run_live_validation(
     return state
 
 
-def _required(prompt: str) -> str:
-    while not (value := input(prompt).strip()):
-        print("A value is required.", file=sys.stderr)
-    return value
-
-
 def main() -> None:
-    """Prompt for one target and invoke the existing transport and capability."""
-    device_host = _required("Device IP/host: ")
-    platform = _required(f"Platform ({', '.join(SUPPORTED_PLATFORMS)}): ")
-    if platform not in SUPPORTED_PLATFORMS:
-        raise SystemExit(f"Unsupported platform: {platform}")
-    username = _required("Device username: ")
+    """Prompt only for the target password and validate the configured target."""
     password = getpass.getpass("Device password: ")
-    proxy = _required("Teleport proxy (host:port): ")
-    cluster = _required("Teleport cluster: ")
-    bastion_host = _required("Bastion host: ")
-    bastion_user = _required("Bastion user: ")
-
-    key_path = cert_path = None
-    if host_platform.system().lower() == "linux":
-        key_path = Path(_required("Teleport private-key path: ")).expanduser()
-        cert_path = Path(_required("Teleport SSH-certificate path: ")).expanduser()
+    key_path, cert_path = _linux_teleport_identity_paths()
 
     run_live_validation(
-        device_host,
-        platform,
-        DeviceCredentials(username=username, password=password),
+        DEVICE_HOST,
+        DEVICE_PLATFORM,
+        DeviceCredentials(username=DEVICE_USERNAME, password=password),
         TransportConfig(
-            proxy=proxy,
-            cluster=cluster,
-            bastion_host=bastion_host,
-            bastion_user=bastion_user,
+            proxy=TELEPORT_PROXY,
+            cluster=TELEPORT_CLUSTER,
+            bastion_host=BASTION_HOST,
+            bastion_user=BASTION_USER,
             teleport_key_path=key_path,
             teleport_cert_path=cert_path,
         ),
