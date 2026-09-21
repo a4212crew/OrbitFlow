@@ -179,7 +179,15 @@ Current major implementation areas:
   that bridge-domain modifiers are excluded from service identity and that VLAN
   IDs are not inferred from service-instance or bridge-domain identifiers.
   `mode=unknown` is expected when an access VLAN is configured without an
-  explicit `switchport mode access` statement.
+  explicit `switchport mode access` statement. Huawei VRP VLAN observation is
+  live validated on NE05E device `R-WIND-168HIGH-RTR1` at `10.251.0.17`,
+  covering the `vlan batch` VLAN database, `Vlanif`, `port default vlan`,
+  `port trunk allow-pass vlan`, tagged trunk VLANs, `vlan-type dot1q`, `dot1q
+  termination`, `control-vid`, and `l2 binding vsi` constructs. Validation
+  confirms that VSI identity remains separate from VLAN identity and that VLAN
+  identity is not inferred from VSI names. The live device used matching
+  control VID and termination VLAN values; differing values remain covered by
+  regression tests rather than this live validation.
 
 ## Known Limitations
 
