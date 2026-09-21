@@ -89,7 +89,7 @@ def test_ios_absent_allowed_list_remains_none():
 
 
 def test_ios_xe_evc_keeps_vlan_and_bridge_domain_separate():
-    interfaces, _ = parse_ios_running_config(
+    interfaces, objects = parse_ios_running_config(
         """interface GigabitEthernet0/0/0
  service instance 44 ethernet
   encapsulation dot1q 445
@@ -101,6 +101,9 @@ def test_ios_xe_evc_keeps_vlan_and_bridge_domain_separate():
         445,
         "900",
     )
+    assert objects[-1].object_type == "bridge-domain"
+    assert objects[-1].object_id == "900"
+    assert objects[-1].vlan_ids == ()
 
 
 def test_ios_xr_does_not_infer_suffix_and_models_l2vpn_and_bvi():
@@ -123,8 +126,40 @@ l2vpn
     assert tagged.service_vlan == 445
     assert tagged.service_binding_name == "METRO/CUSTOMER-A"
     assert untagged.service_vlan is None
+    bvi = next(x for x in interfaces if x.interface_name == "BVI44")
+    assert bvi.mode == "svi"
+    assert bvi.service_binding_type == "bridge-domain"
+    assert bvi.service_binding_name == "METRO/CUSTOMER-A"
     assert objects[0].object_type == "bridge-domain"
+    assert objects[0].object_id == "METRO/CUSTOMER-A"
+    assert objects[0].vlan_ids == ()
     assert all(x.object_type != "vlan" for x in objects)
+
+
+def test_ios_xr_l2vpn_bindings_respect_hierarchy_indentation():
+    interfaces, objects = parse_ios_xr_running_config("""l2vpn
+ bridge group GROUP-A
+  bridge-domain DOMAIN-1
+   interface Gi0/0/0/1.10
+  bridge-domain DOMAIN-2
+   interface Gi0/0/0/1.20
+  interface OUTSIDE-BRIDGE-DOMAIN
+ bridge group GROUP-B
+  bridge-domain DOMAIN-1
+   routed interface BVI30
+!""")
+    bindings = {item.interface_name: item.service_binding_name for item in interfaces}
+    assert bindings == {
+        "Gi0/0/0/1.10": "GROUP-A/DOMAIN-1",
+        "Gi0/0/0/1.20": "GROUP-A/DOMAIN-2",
+        "BVI30": "GROUP-B/DOMAIN-1",
+    }
+    assert "OUTSIDE-BRIDGE-DOMAIN" not in bindings
+    assert [item.object_id for item in objects] == [
+        "GROUP-A/DOMAIN-1",
+        "GROUP-A/DOMAIN-2",
+        "GROUP-B/DOMAIN-1",
+    ]
 
 
 def test_ios_xr_preserves_outer_and_inner_vlan_identity():
@@ -151,14 +186,18 @@ interface GigabitEthernet0/0/2
 interface Vlanif545
 #
 interface GigabitEthernet0/0/3.445
- control-vid 445 dot1q-termination
+ control-vid 44 dot1q-termination
  dot1q termination vid 445
  l2 binding vsi LBB-PPPOE-2445
 #
 interface GigabitEthernet0/0/4.1376
  vlan-type dot1q 1376
 #""")
-    assert [x.vlan_ids[0] for x in objects] == [545, 745, 746]
+    assert [x.vlan_ids[0] for x in objects if x.object_type == "vlan"] == [
+        545,
+        745,
+        746,
+    ]
     assert interfaces[1].allowed_vlans == (545, 745, 746)
     service = interfaces[3]
     assert (
@@ -166,6 +205,11 @@ interface GigabitEthernet0/0/4.1376
         service.service_binding_name,
         service.vlan_database_applicable,
     ) == (445, "LBB-PPPOE-2445", False)
+    assert service.control_vlan == 44
+    assert service.referenced_vlans == (44, 445)
+    vsi = next(x for x in objects if x.object_type == "vsi")
+    assert vsi.object_id == "LBB-PPPOE-2445"
+    assert vsi.vlan_ids == ()
     assert interfaces[4].service_vlan == 1376
 
 

@@ -120,6 +120,10 @@ The normalized snapshot separates interface VLAN references from VLAN,
 bridge-domain, and service identities. Vendor adapters preserve classic
 switchport/database, IOS-XE EVC, IOS-XR subinterface/L2VPN, Huawei
 VLAN/Vlanif/dot1q/VSI, and EdgeSwitch participation/PVID/tagging semantics.
+IOS-XE and IOS-XR bridge domains and Huawei VSIs are normalized as equivalent
+service objects without treating their identity as a VLAN ID. IOS-XR L2VPN
+bindings preserve hierarchy and routed BVI membership, while Huawei termination
+observations retain both control VID and dot1q termination VID facts.
 Observation performs no consistency or compliance decisions.
 
 `scripts/live_validate_interfaces.py` provides a deliberately limited

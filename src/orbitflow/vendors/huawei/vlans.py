@@ -18,6 +18,7 @@ def parse_huawei_config(
 ) -> tuple[tuple[InterfaceVlanObservation, ...], tuple[VlanObject, ...]]:
     database: set[int] = set()
     interfaces: list[InterfaceVlanObservation] = []
+    service_objects: dict[str, VlanObject] = {}
     sections = re.split(r"^#\s*$", output, flags=re.M)
     for section in sections:
         lines = [x.strip() for x in section.splitlines() if x.strip()]
@@ -83,11 +84,20 @@ def parse_huawei_config(
                 )
             )
         elif dot1q or termination or control or vsi:
-            source = dot1q or termination or control
-            vlan_match = re.search(
-                r"(?:vlan-type dot1q|termination vid|control-vid)\s+(\d+)", source
+            dot1q_match = re.search(r"vlan-type dot1q\s+(\d+)", dot1q)
+            termination_match = re.search(r"termination vid\s+(\d+)", termination)
+            control_match = re.search(r"control-vid\s+(\d+)", control)
+            service_match = termination_match or dot1q_match
+            service_vlan = int(service_match.group(1)) if service_match else None
+            control_vlan = int(control_match.group(1)) if control_match else None
+            referenced = tuple(
+                sorted(
+                    value for value in {service_vlan, control_vlan} if value is not None
+                )
             )
-            service_vlan = int(vlan_match.group(1)) if vlan_match else None
+            vsi_name = vsi[15:] if vsi else ""
+            if vsi_name:
+                service_objects[vsi_name] = VlanObject("vsi", vsi_name, vsi_name)
             interfaces.append(
                 InterfaceVlanObservation(
                     name,
@@ -98,8 +108,9 @@ def parse_huawei_config(
                         else "routed_subinterface"
                     ),
                     service_vlan=service_vlan,
+                    control_vlan=control_vlan,
                     outer_vlan=service_vlan,
-                    referenced_vlans=(service_vlan,) if service_vlan else (),
+                    referenced_vlans=referenced,
                     vlan_source=(
                         "dot1q-termination"
                         if (termination or control)
@@ -107,12 +118,12 @@ def parse_huawei_config(
                     ),
                     vlan_database_applicable=False,
                     service_binding_type="vsi" if vsi else "",
-                    service_binding_name=vsi[15:] if vsi else "",
+                    service_binding_name=vsi_name,
                 )
             )
     objects = tuple(
         VlanObject("vlan", str(vlan), vlan_ids=(vlan,)) for vlan in sorted(database)
-    )
+    ) + tuple(service_objects[name] for name in sorted(service_objects))
     return tuple(interfaces), objects
 
 

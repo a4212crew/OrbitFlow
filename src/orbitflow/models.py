@@ -46,6 +46,7 @@ class InterfaceVlanObservation:
     untagged_vlans: tuple[int, ...] = ()
     excluded_vlans: tuple[int, ...] = ()
     service_vlan: Optional[int] = None
+    control_vlan: Optional[int] = None
     outer_vlan: Optional[int] = None
     inner_vlan: Optional[int] = None
     referenced_vlans: tuple[int, ...] = ()

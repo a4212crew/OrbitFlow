@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 
 from orbitflow.models import InterfaceVlanObservation, VlanObject
 from orbitflow.transport import DeviceSession
@@ -17,7 +18,9 @@ _REJECTED = re.compile(
 )
 
 
-def _blocks(output: str) -> list[tuple[str, list[str]]]:
+def _blocks(
+    output: str, *, preserve_body_indentation: bool = False
+) -> list[tuple[str, list[str]]]:
     blocks: list[tuple[str, list[str]]] = []
     heading = ""
     body: list[str] = []
@@ -32,7 +35,7 @@ def _blocks(output: str) -> list[tuple[str, list[str]]]:
                 blocks.append((heading, body))
             heading, body = "", []
         elif heading:
-            body.append(line.strip())
+            body.append(line if preserve_body_indentation else line.strip())
     return blocks
 
 
@@ -104,7 +107,12 @@ def parse_ios_running_config(
                 sm = re.fullmatch(r"service instance (\S+) ethernet", line)
                 if sm:
                     if current is not None:
-                        interfaces.append(_evc(name, description, sid, current))
+                        observation, service_object = _evc(
+                            name, description, sid, current
+                        )
+                        interfaces.append(observation)
+                        if service_object is not None and service_object not in objects:
+                            objects.append(service_object)
                     sid, current = sm.group(1), []
                 elif current is not None:
                     current.append(line)
@@ -113,21 +121,25 @@ def parse_ios_running_config(
 
 def _evc(
     name: str, description: str, sid: str, lines: list[str]
-) -> InterfaceVlanObservation:
+) -> tuple[InterfaceVlanObservation, VlanObject | None]:
     encap = next((x for x in lines if x.startswith("encapsulation dot1q ")), "")
     bridge = next((x for x in lines if x.startswith("bridge-domain ")), "")
     vlan = int(encap.split()[2]) if encap and encap.split()[2].isdigit() else None
-    return InterfaceVlanObservation(
-        name,
-        description,
-        "service",
-        service_vlan=vlan,
-        outer_vlan=vlan,
-        referenced_vlans=(vlan,) if vlan else (),
-        vlan_source="service-instance",
-        vlan_database_applicable=False,
-        service_binding_type="bridge-domain" if bridge else "service-instance",
-        service_binding_name=bridge.split(maxsplit=1)[1] if bridge else sid,
+    bridge_name = bridge.split(maxsplit=1)[1] if bridge else ""
+    return (
+        InterfaceVlanObservation(
+            name,
+            description,
+            "service",
+            service_vlan=vlan,
+            outer_vlan=vlan,
+            referenced_vlans=(vlan,) if vlan else (),
+            vlan_source="service-instance",
+            vlan_database_applicable=False,
+            service_binding_type="bridge-domain" if bridge else "service-instance",
+            service_binding_name=bridge_name or sid,
+        ),
+        VlanObject("bridge-domain", bridge_name, bridge_name) if bridge_name else None,
     )
 
 
@@ -137,50 +149,50 @@ def parse_ios_xr_running_config(
     interfaces: list[InterfaceVlanObservation] = []
     objects: list[VlanObject] = []
     bindings: dict[str, tuple[str, str]] = {}
-    current_bg = current_bd = ""
-    for heading, lines in _blocks(output):
+    for heading, lines in _blocks(output, preserve_body_indentation=True):
         if heading.startswith("l2vpn"):
-            # l2vpn is commonly one indentation hierarchy; retain its semantic nesting.
-            stack: list[tuple[int, str]] = []
+            bridge_group: tuple[int, str] | None = None
+            bridge_domain: tuple[int, str] | None = None
             for raw in lines:
                 indent = len(raw) - len(raw.lstrip())
                 line = raw.strip()
-                while stack and stack[-1][0] >= indent:
-                    stack.pop()
+                if bridge_domain is not None and indent <= bridge_domain[0]:
+                    bridge_domain = None
+                if bridge_group is not None and indent <= bridge_group[0]:
+                    bridge_group = None
                 if line.startswith("bridge group "):
-                    current_bg = line[13:]
+                    bridge_group = (indent, line[13:])
+                    bridge_domain = None
                 elif line.startswith("bridge-domain "):
-                    current_bd = line[14:]
+                    if bridge_group is None or indent <= bridge_group[0]:
+                        continue
+                    bridge_domain = (indent, line[14:])
+                    identity = f"{bridge_group[1]}/{bridge_domain[1]}"
                     objects.append(
-                        VlanObject(
-                            "bridge-domain", f"{current_bg}/{current_bd}", current_bd
-                        )
+                        VlanObject("bridge-domain", identity, bridge_domain[1])
                     )
-                elif line.startswith("interface "):
-                    bindings[line[10:].split()[0]] = (
-                        "bridge-domain",
-                        f"{current_bg}/{current_bd}",
-                    )
-                elif line.startswith("routed interface "):
-                    bindings[line[17:]] = (
-                        "bridge-domain",
-                        f"{current_bg}/{current_bd}",
-                    )
-                stack.append((indent, line))
+                elif bridge_domain is not None and indent > bridge_domain[0]:
+                    assert bridge_group is not None
+                    identity = f"{bridge_group[1]}/{bridge_domain[1]}"
+                    if line.startswith("interface "):
+                        bindings[line[10:].split()[0]] = ("bridge-domain", identity)
+                    elif line.startswith("routed interface "):
+                        bindings[line[17:].strip()] = ("bridge-domain", identity)
             continue
         match = re.fullmatch(r"interface (.+?)(?: (l2transport))?", heading)
         if not match:
             continue
         name, l2 = match.group(1), bool(match.group(2))
+        stripped_lines = [line.strip() for line in lines]
         encap = next(
             (
                 x
-                for x in lines
+                for x in stripped_lines
                 if x.startswith("encapsulation dot1q ") or x == "encapsulation untagged"
             ),
             "",
         )
-        if not encap and name not in bindings:
+        if not encap:
             continue
         vlan = inner_vlan = None
         if encap.startswith("encapsulation dot1q "):
@@ -194,7 +206,7 @@ def parse_ios_xr_running_config(
         interfaces.append(
             InterfaceVlanObservation(
                 name,
-                _description(lines),
+                _description(stripped_lines),
                 "service" if l2 else "routed_subinterface",
                 service_vlan=vlan,
                 outer_vlan=vlan,
@@ -209,21 +221,33 @@ def parse_ios_xr_running_config(
                 service_binding_name=binding[1],
             )
         )
-    # Bindings are parsed after interface blocks in normal configs; patch immutably.
+    observed_names = {observation.interface_name for observation in interfaces}
     interfaces = [
         (
-            obs
-            if obs.interface_name not in bindings
-            else InterfaceVlanObservation(
-                **{
-                    **obs.__dict__,
-                    "service_binding_type": bindings[obs.interface_name][0],
-                    "service_binding_name": bindings[obs.interface_name][1],
-                }
+            replace(
+                observation,
+                service_binding_type=bindings[observation.interface_name][0],
+                service_binding_name=bindings[observation.interface_name][1],
             )
+            if observation.interface_name in bindings
+            else observation
         )
-        for obs in interfaces
+        for observation in interfaces
     ]
+    for interface_name, binding in bindings.items():
+        if interface_name not in observed_names:
+            interfaces.append(
+                InterfaceVlanObservation(
+                    interface_name,
+                    mode=(
+                        "svi" if interface_name.upper().startswith("BVI") else "service"
+                    ),
+                    vlan_source="l2vpn-binding",
+                    vlan_database_applicable=False,
+                    service_binding_type=binding[0],
+                    service_binding_name=binding[1],
+                )
+            )
     return tuple(interfaces), tuple(objects)
 
 
