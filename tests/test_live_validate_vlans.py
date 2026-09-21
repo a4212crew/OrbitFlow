@@ -13,6 +13,11 @@ live_validate_vlans = module_from_spec(_SPEC)
 _SPEC.loader.exec_module(live_validate_vlans)
 
 
+def test_value_formatter_distinguishes_none_from_explicitly_empty_tuple():
+    assert live_validate_vlans._format_value(None) == "-"
+    assert live_validate_vlans._format_value(()) == "[]"
+
+
 def test_live_validation_reuses_transport_and_vlan_service(monkeypatch):
     session = DeviceSession(object(), lambda: None)
     credentials = DeviceCredentials(username="operator", password="secret-value")
