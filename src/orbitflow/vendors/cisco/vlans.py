@@ -149,6 +149,7 @@ def parse_ios_xr_running_config(
     interfaces: list[InterfaceVlanObservation] = []
     objects: list[VlanObject] = []
     bindings: dict[str, tuple[str, str]] = {}
+    interface_descriptions: dict[str, str] = {}
     for heading, lines in _blocks(output, preserve_body_indentation=True):
         if heading.startswith("l2vpn"):
             bridge_group: tuple[int, str] | None = None
@@ -184,6 +185,7 @@ def parse_ios_xr_running_config(
             continue
         name, l2 = match.group(1), bool(match.group(2))
         stripped_lines = [line.strip() for line in lines]
+        interface_descriptions[name] = _description(stripped_lines)
         encap = next(
             (
                 x
@@ -239,6 +241,7 @@ def parse_ios_xr_running_config(
             interfaces.append(
                 InterfaceVlanObservation(
                     interface_name,
+                    description=interface_descriptions.get(interface_name, ""),
                     mode=(
                         "svi" if interface_name.upper().startswith("BVI") else "service"
                     ),

@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import pytest
 
 from orbitflow.capabilities import VlanCapabilityError, VlanService
+from orbitflow.models import InterfaceVlanObservation
 from orbitflow.transport import DeviceSession
 from orbitflow.vendors.cisco.vlans import (
     parse_ios_running_config,
@@ -134,6 +135,32 @@ l2vpn
     assert objects[0].object_id == "METRO/CUSTOMER-A"
     assert objects[0].vlan_ids == ()
     assert all(x.object_type != "vlan" for x in objects)
+
+
+def test_ios_xr_bound_bvi_retains_interface_description_without_encapsulation():
+    interfaces, _ = parse_ios_xr_running_config("""interface BVI2445
+ description Routed customer gateway
+ ipv4 address 192.0.2.1 255.255.255.0
+!
+l2vpn
+ bridge group METRO
+  bridge-domain CUSTOMER-A
+   routed interface BVI2445
+!""")
+
+    assert interfaces == (
+        InterfaceVlanObservation(
+            "BVI2445",
+            description="Routed customer gateway",
+            mode="svi",
+            vlan_source="l2vpn-binding",
+            vlan_database_applicable=False,
+            service_binding_type="bridge-domain",
+            service_binding_name="METRO/CUSTOMER-A",
+        ),
+    )
+    assert interfaces[0].referenced_vlans == ()
+    assert interfaces[0].service_vlan is None
 
 
 def test_ios_xr_l2vpn_bindings_respect_hierarchy_indentation():

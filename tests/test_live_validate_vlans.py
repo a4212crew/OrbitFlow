@@ -71,3 +71,37 @@ def test_live_validation_reuses_transport_and_vlan_service(monkeypatch):
     assert "Gi0/0/0: description=Customer, mode=trunk" in rendered
     assert "allowed_vlans=100,200" in rendered
     assert "secret-value" not in rendered
+
+
+def test_main_prompts_only_for_password_and_uses_configured_target(monkeypatch):
+    calls = []
+
+    def fake_getpass(prompt):
+        calls.append(("getpass", prompt))
+        return "not-rendered"
+
+    def fail_input(*_args, **_kwargs):
+        raise AssertionError("main must not prompt for non-secret target settings")
+
+    def fake_run(host, platform, credentials, config):
+        calls.append(("run", host, platform, credentials, config))
+
+    monkeypatch.setattr(live_validate_vlans.getpass, "getpass", fake_getpass)
+    monkeypatch.setattr("builtins.input", fail_input)
+    monkeypatch.setattr(
+        live_validate_vlans, "_linux_teleport_identity_paths", lambda: (None, None)
+    )
+    monkeypatch.setattr(live_validate_vlans, "run_live_validation", fake_run)
+
+    live_validate_vlans.main()
+
+    assert calls[0] == ("getpass", "Device password: ")
+    _, host, platform, credentials, config = calls[1]
+    assert (host, platform) == ("10.251.10.98", "cisco_xr")
+    assert credentials == DeviceCredentials("lightningadmin", "not-rendered")
+    assert config == TransportConfig(
+        "teleport.lynhamnetworks.au:443",
+        "lynhamcluster",
+        "bastion-lyn-dc1-vic",
+        "lightningadmin",
+    )
