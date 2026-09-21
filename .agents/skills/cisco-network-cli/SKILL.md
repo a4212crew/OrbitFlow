@@ -11,6 +11,7 @@ Use when a task changes Cisco-specific commands, configuration generation, verif
 
 Also use the relevant task skill:
 - interface collection -> `../interface-collector/SKILL.md`
+- VLAN observation -> `../vlan-observation/SKILL.md`
 - access VLAN provisioning -> `../access-vlan-provisioning/SKILL.md`
 
 Do not implement Teleport transport here.
@@ -116,3 +117,37 @@ Rollback should rely on captured pre-change state and explicit rollback logic, n
 Keep OrbitFlow platform identifiers separate from library-specific driver identifiers.
 
 Do not assume `cisco_ios`, `cisco_xe`, and `cisco_xr` are interchangeable merely because a command happens to match.
+
+
+## VLAN Observation
+
+Approved read-only configuration source for Cisco IOS / IOS-XE:
+
+```text
+show running-config
+```
+
+### IOS / 3750X
+
+Parse global `vlan <id>` sections as the traditional VLAN database.
+
+Parse classic access/trunk interface facts including:
+- `switchport mode access`
+- `switchport access vlan <id>`
+- `switchport mode trunk`
+- optional `switchport trunk allowed vlan ...`
+- optional `switchport trunk native vlan ...`
+
+If an explicit trunk allowed list is absent, record it as not explicitly configured rather than inventing an explicit list.
+
+Login/MOTD banners may themselves contain `#`; preserve the existing stable dynamic-prompt and command-echo synchronization behavior.
+
+### IOS-XE / ASR920 / ME3600X
+
+In addition to classic switchport syntax, support EVC/service-instance observations such as `service instance <id> ethernet`, `encapsulation dot1q <vlan>`, and `bridge-domain <id>`.
+
+Keep encapsulation VLAN and bridge-domain/service identity separate; do not force EVC state into the classic switchport model.
+
+### IOS-XR / NCS540
+
+Treat VLANs as service/subinterface constructs rather than assuming a classic VLAN database. The VLAN-observation collection command for IOS-XR is not yet approved; discuss it before implementation.
