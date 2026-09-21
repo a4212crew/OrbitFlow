@@ -163,9 +163,15 @@ Current major implementation areas:
 - Interface capability tests cover all five platform identifiers with deterministic fake sessions.
 - Interface capability has now been live validated on Cisco IOS, Cisco IOS-XE, Cisco IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch.
 - VLAN observation has deterministic parser and command-selection coverage for
-  all five platform identifiers. IOS-XE has been live tested on an ME3600X;
-  that test exposed bridge-domain modifier parsing, which PR #22 fixes. Final
-  IOS-XE VLAN/EVC live validation is pending a rerun after the fix.
+  all five platform identifiers. Cisco IOS-XE VLAN observation is live validated
+  on the ME3600X at `10.251.10.50`, covering VLAN database entries and names,
+  access VLANs, trunk allowed VLAN lists (including explicit `none`), VLAN range
+  expansion, EVC dot1q and untagged encapsulations, multiple service instances
+  per interface, and bridge-domain discovery/binding. Validation also confirms
+  that bridge-domain modifiers are excluded from service identity and that VLAN
+  IDs are not inferred from service-instance or bridge-domain identifiers.
+  `mode=unknown` is expected when an access VLAN is configured without an
+  explicit `switchport mode access` statement.
 
 ## Known Limitations
 
