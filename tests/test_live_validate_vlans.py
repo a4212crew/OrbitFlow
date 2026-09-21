@@ -1,0 +1,73 @@
+from datetime import datetime, timezone
+from importlib.util import module_from_spec, spec_from_file_location
+from io import StringIO
+from pathlib import Path
+
+from orbitflow.models import InterfaceVlanObservation, VlanObject, VlanState
+from orbitflow.transport import DeviceCredentials, DeviceSession, TransportConfig
+
+_SCRIPT = Path(__file__).parents[1] / "scripts" / "live_validate_vlans.py"
+_SPEC = spec_from_file_location("live_validate_vlans", _SCRIPT)
+assert _SPEC is not None and _SPEC.loader is not None
+live_validate_vlans = module_from_spec(_SPEC)
+_SPEC.loader.exec_module(live_validate_vlans)
+
+
+def test_live_validation_reuses_transport_and_vlan_service(monkeypatch):
+    session = DeviceSession(object(), lambda: None)
+    credentials = DeviceCredentials(username="operator", password="secret-value")
+    config = TransportConfig("proxy:443", "cluster", "bastion", "teleport-user")
+    state = VlanState(
+        "edge-01",
+        "192.0.2.10",
+        "cisco_xe",
+        (
+            InterfaceVlanObservation(
+                interface_name="Gi0/0/0",
+                description="Customer",
+                mode="trunk",
+                allowed_vlans=(100, 200),
+                referenced_vlans=(100, 200),
+            ),
+        ),
+        (VlanObject("vlan", "100", "CUSTOMER", (100,)),),
+        datetime(2026, 9, 21, tzinfo=timezone.utc),
+    )
+    calls = []
+
+    def fake_connect(host, supplied_credentials, supplied_config):
+        calls.append(("connect", host, supplied_credentials, supplied_config))
+        return session
+
+    class FakeVlanService:
+        def collect(self, supplied_session, **device):
+            calls.append(("collect", supplied_session, device))
+            return state
+
+    monkeypatch.setattr(live_validate_vlans, "connect_device", fake_connect)
+    monkeypatch.setattr(live_validate_vlans, "VlanService", FakeVlanService)
+    output = StringIO()
+
+    result = live_validate_vlans.run_live_validation(
+        "192.0.2.10", "cisco_xe", credentials, config, output=output
+    )
+
+    assert result is state
+    assert calls == [
+        ("connect", "192.0.2.10", credentials, config),
+        (
+            "collect",
+            session,
+            {
+                "device_ip": "192.0.2.10",
+                "platform": "cisco_xe",
+                "device_name": None,
+            },
+        ),
+    ]
+    rendered = output.getvalue()
+    assert "Device: edge-01" in rendered
+    assert "type=vlan, id=100, name=CUSTOMER, vlan_ids=100" in rendered
+    assert "Gi0/0/0: description=Customer, mode=trunk" in rendered
+    assert "allowed_vlans=100,200" in rendered
+    assert "secret-value" not in rendered

@@ -131,6 +131,11 @@ single-device integration entry point for live validation of this existing
 capability. It accepts caller-supplied credentials and `TransportConfig`, prints
 normalized records, and does not implement inventory or production collection.
 
+`scripts/live_validate_vlans.py` provides the equivalent single-device,
+operator-prompted integration harness for `VlanService`. It prints normalized
+VLAN/service objects and interface observations for manual comparison; its
+existence does not constitute live validation of the VLAN capability.
+
 ## Repository Structure
 
 Current major implementation areas:
@@ -139,6 +144,7 @@ Current major implementation areas:
 - `src/orbitflow/vendors/huawei/` and `src/orbitflow/vendors/ubiquiti/` — vendor interface collection/parsing;
 - `src/orbitflow/capabilities/` and `src/orbitflow/models.py` — reusable interface/VLAN capabilities and normalized records;
 - `scripts/live_validate_interfaces.py` — single-device interface integration validation;
+- `scripts/live_validate_vlans.py` — single-device VLAN integration validation harness;
 - `tests/` — deterministic mocked/unit tests;
 - `.agents/skills/` — task/vendor-specific implementation guidance.
 
