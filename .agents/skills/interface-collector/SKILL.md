@@ -14,15 +14,16 @@ Do not implement transport here.
 ## Related Skills
 
 - `../jumphost-connectivity/SKILL.md` — device sessions.
-- `../excel-inventory/SKILL.md` — inventory.
+- `../device-inventory/SKILL.md` — resolved device identity/platform context.
+- `../excel-inventory/SKILL.md` — optional Excel/list target input.
 - `../cisco-network-cli/SKILL.md` — Cisco CLI details.
 - `../huawei-network-cli/SKILL.md` — Huawei CLI details.
 - `../ubiquiti-network-cli/SKILL.md` — EdgeSwitch CLI details.
 
 ## Collection Workflow
 
-1. Read targets from inventory.
-2. Acquire a device session through OrbitFlow transport.
+1. Receive a resolved DeviceContext or resolve the supplied target through the device-inventory layer.
+2. Acquire/reuse a device session through OrbitFlow transport.
 3. Run the appropriate vendor/platform command.
 4. Parse deterministically.
 5. Normalize into common records.
@@ -30,7 +31,7 @@ Do not implement transport here.
 7. Compare with prior tracking state.
 8. Write the workbook in a controlled batch.
 
-Do not implement an independent SSH path in collector code.
+Do not implement an independent SSH path or independent platform-discovery path in collector code.
 
 ## Platform Collection Baseline
 
