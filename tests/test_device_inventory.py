@@ -53,6 +53,22 @@ def test_captured_cisco_outputs_detect_family_and_profile(tmp_path, version, inv
         assert context.serial_number == "FOC2643NCVA"
 
 
+def test_ncs540_show_chassis_accepts_live_dashed_separator(tmp_path):
+    version = "Cisco IOS XR Software, Version 7.7.2\ncore uptime is 1 year\nNCS-540"
+    chassis = """Serial Num    Rack Num    Rack Type   Rack State
+-------------------------------------------------
+FOC2643NCN3   0           LCC         UP
+
+"""
+    service, _ = resolver(
+        tmp_path, {"show version": version, "show chassis": chassis}
+    )
+
+    context = service.resolve(object(), management_ip="192.0.2.4")
+
+    assert context.serial_number == "FOC2643NCN3"
+
+
 @pytest.mark.parametrize(
     ("esn_output", "expected_serial"),
     [

@@ -36,7 +36,7 @@ def parse_cisco_identity(version: str, inventory: str) -> dict[str, object] | No
     if not serial and platform == "cisco_xr":
         serial = _first(
             inventory,
-            r"(?mi)^Serial Num\s+Rack Num[^\n]*\n\s*([A-Za-z0-9-]+)\s+\d+\b",
+            r"(?mi)^Serial Num\s+Rack Num[^\n]*\n(?:\s*-+\s*\n)?\s*([A-Za-z0-9-]+)\s+\d+\b",
         )
     if not serial:
         serial = _first(version, r"(?mi)^Processor board ID\s+([A-Za-z0-9-]+)")
