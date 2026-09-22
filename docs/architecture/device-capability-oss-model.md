@@ -28,7 +28,7 @@ Higher layers must not recreate OS-specific transport.
 
 OrbitFlow separates target input from observed device identity.
 
-A caller may begin with only a management IP plus credentials/credential reference. The device resolver should determine or reuse vendor/platform context, collect relatively stable device facts, reconcile physical identity, and return a normalized `DeviceContext`.
+A caller may begin with only a management IP plus credentials/credential reference. The device resolver should determine or reuse vendor/platform context, device family/model and any required capability profile, collect relatively stable device facts, reconcile physical identity, and return a normalized `DeviceContext`.
 
 Inventory is not a CMDB or authoritative network source of truth. It is latest-known observed context used to identify the physical device and select reusable platform capabilities.
 
@@ -39,6 +39,8 @@ Identity rules:
 - no reliable serial -> do not aggressively merge.
 
 Volatile state such as interface status, VLANs, routing/service state, counters, and logs remains in live observation capabilities and is recollected when requested.
+
+Platform/OS family and device capability profile are separate concerns. A capability may select behaviour using both. For example, ME3600X is a Cisco IOS device but still requires EVC/service-instance VLAN parsing, while C3750X is also Cisco IOS but uses classic switchport/VLAN behaviour.
 
 ### 2. Device Capability Layer
 
