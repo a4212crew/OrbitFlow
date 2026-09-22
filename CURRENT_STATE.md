@@ -27,6 +27,9 @@ External OSS/BSS / REST API / GUI / schedulers
 ```
 
 Key rules:
+- separate target input from observed device identity;
+- resolve management IP + credentials into a reusable DeviceContext where supported;
+- treat stored inventory as latest-known observed context, not a CMDB/source of truth;
 - implement each network-device capability once;
 - vendor-specific command/parsing logic remains isolated;
 - normalize CLI output into reusable structured models;
@@ -38,6 +41,26 @@ Key rules:
 Detailed model: `docs/architecture/device-capability-oss-model.md`.
 
 ## Current Architecture
+
+### Device Inventory / Identification Direction
+
+The next inventory layer is defined architecturally but not yet implemented in runtime code.
+
+Intended behaviour:
+- callers may begin with management IP plus runtime credentials/credential reference;
+- OrbitFlow detects or reuses vendor/platform context, device family/model, and any required capability profile, then collects stable device facts;
+- serial number is preferred for physical-device identity when reliably available;
+- management IP is a reachability attribute and may change without creating a duplicate physical device;
+- same IP with a different serial triggers re-identification as a likely replacement/reassignment;
+- credentials are never stored in inventory snapshots;
+- interface, VLAN, routing, service, counter, and log state remain live capability observations rather than permanent inventory facts;
+- the resolver returns DeviceContext for InterfaceService, VlanService, and future capabilities;
+- platform alone is not sufficient to select every capability path: ME3600X is treated as Cisco IOS while retaining an EVC-capable device profile so existing service-instance VLAN observation is preserved.
+
+Documentation baseline:
+- `.agents/skills/device-inventory/SKILL.md`
+- `.agents/skills/excel-inventory/SKILL.md`
+- `docs/architecture/device-capability-oss-model.md`
 
 ### Transport
 
@@ -207,9 +230,9 @@ Current major implementation areas:
 
 ## Current Development Focus
 
-The read-only multi-vendor VLAN observation capability is implemented. A later
-analysis/policy layer may consume `VlanState` to perform explicit consistency
-checking; that policy is intentionally not part of observation.
+The read-only multi-vendor interface and VLAN observation capabilities are implemented and remain reusable live-observation layers.
+
+The next development focus is the device inventory/identification MVP: resolve a supplied management IP and credentials into observed stable device facts and DeviceContext, with conservative platform detection and physical-device identity reconciliation. This layer must not absorb interface/VLAN state or compliance logic.
 
 Relevant skills:
 - `.agents/skills/vlan-observation/SKILL.md`

@@ -22,7 +22,7 @@ Do not implement Teleport transport here.
 - Cisco IOS-XE
 - Cisco IOS-XR
 
-Keep IOS/IOS-XE and IOS-XR behaviour separate.
+Keep IOS/IOS-XE and IOS-XR behaviour separate. Also keep OS family separate from device family/capability profile: model-specific features must not be inferred from the OS label alone.
 
 ## Interactive CLI
 
@@ -118,6 +118,12 @@ Keep OrbitFlow platform identifiers separate from library-specific driver identi
 
 Do not assume `cisco_ios`, `cisco_xe`, and `cisco_xr` are interchangeable merely because a command happens to match.
 
+Do not use the platform identifier as a proxy for hardware/service capability. Device family/profile may additionally control capability behaviour. Example:
+- C3750X: `platform=cisco_ios`, classic switchport/VLAN capability profile.
+- ME3600X: `platform=cisco_ios`, ME3600X profile with EVC/service-instance support.
+- ASR920: `platform=cisco_xe`, ASR920 profile with EVC/service-instance support.
+- C3850: `platform=cisco_xe`, classic switchport-oriented profile unless observed configuration requires otherwise.
+
 
 ## VLAN Observation
 
@@ -142,9 +148,13 @@ If an explicit trunk allowed list is absent, record it as not explicitly configu
 
 Login/MOTD banners may themselves contain `#`; preserve the existing stable dynamic-prompt and command-echo synchronization behavior.
 
-### IOS-XE / ASR920 / ME3600X
+### EVC-capable IOS / IOS-XE families — ME3600X / ASR920
 
-In addition to classic switchport syntax, support EVC/service-instance observations such as `service instance <id> ethernet`, `encapsulation dot1q <vlan>`, and `bridge-domain <id>`.
+EVC capability is device-family/profile driven, not IOS-XE-only.
+
+ME3600X live software output identifies the device as Cisco IOS, while its configuration still uses EVC/service-instance constructs. ASR920 runs IOS-XE and also supports EVC/service-instance constructs.
+
+For EVC-capable profiles, in addition to classic switchport syntax, support observations such as `service instance <id> ethernet`, `encapsulation dot1q <vlan>`, and `bridge-domain <id>`.
 
 Keep encapsulation VLAN and bridge-domain/service identity separate; do not force EVC state into the classic switchport model.
 
