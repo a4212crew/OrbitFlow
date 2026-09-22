@@ -16,7 +16,8 @@ Vendor parsers report observed facts only. A separate analysis/policy layer will
 
 ## Architecture Rules
 
-- Consume a resolved DeviceContext/platform from the device-inventory layer when orchestration starts from only an IP; do not implement independent platform discovery here.
+- Consume a resolved DeviceContext from the device-inventory layer when orchestration starts from only an IP; do not implement independent platform discovery here.
+- Adapter/parser behaviour may depend on both platform and device family/capability profile. Do not infer EVC/service-instance support purely from `cisco_xe` versus `cisco_ios`.
 - Reuse `connect_device(...)` / `DeviceSession`; do not create new transport logic.
 - Keep vendor commands/parsers isolated.
 - Normalize into common structured VLAN state.
