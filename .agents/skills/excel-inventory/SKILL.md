@@ -1,33 +1,36 @@
 ---
 name: excel-inventory
-description: Use for OrbitFlow Excel inventory loading, device target input, required columns, platform normalization, credential precedence, inventory validation, Location ID handling, or inventory tests.
+description: Use for OrbitFlow Excel/list target loading, required/optional input fields, platform override normalization, credential precedence, input validation, Location ID handling, or input-source tests.
 ---
 
 # Excel Inventory
 
 ## Use This Skill When
 
-Use for inventory workbook loading, required/optional fields, row validation, platform normalization, device target selection, credential precedence related to inventory, Location ID handling, and inventory tests.
+Use for Excel/list target loading, required/optional fields, row validation, optional platform override normalization, device target selection, credential precedence, Location ID handling, and input-source tests.
 
 Do not use this skill for Teleport transport implementation, interface parsing, or access VLAN command generation.
 
 ## Related Skills
 
+- `../device-inventory/SKILL.md` for device identification, platform detection, identity reconciliation, and observed snapshots.
 - `../jumphost-connectivity/SKILL.md` for device connection transport.
 - `../interface-collector/SKILL.md` for collection.
 - `../access-vlan-provisioning/SKILL.md` for provisioning input.
 
 ## Principle
 
-Inventory is the source of truth for device targets. Do not hardcode production device lists into task workflows.
+Excel is an approved **target input source**, not the authoritative physical-device inventory.
+
+Do not hardcode production device lists into task workflows. Load target rows, validate them, then let the device-inventory layer resolve observed hostname/vendor/platform/model/serial where required.
 
 ## Core Device Inventory Fields
 
 | Column | Purpose | Requirement |
 |---|---|---|
-| `Device Name` | Hostname/friendly name | Required |
-| `Device IP` | Management address | Required |
-| `Platform` | OrbitFlow platform identifier | Required |
+| `Device IP` | Management/reachability address | Required |
+| `Device Name` | Compatibility/display hint | Optional |
+| `Platform` | Manual OrbitFlow platform override/hint | Optional |
 | `Username` | Device login | Optional if credential provider supplies it |
 | `Password` | Device password | Optional if credential provider supplies it |
 | `Secret` | Enable secret where required | Optional |
@@ -50,7 +53,7 @@ At minimum:
 - required columns exist;
 - inventory is not empty when a device operation is requested;
 - target address is present;
-- platform normalizes to a supported identifier;
+- supplied platform override, when present, normalizes to a supported identifier;
 - optional port is valid when supplied;
 - invalid rows produce clear row-specific errors.
 
@@ -77,7 +80,7 @@ Unit tests should cover:
 - valid inventory load;
 - missing required columns;
 - empty inventory;
-- unsupported platform;
+- unsupported supplied platform override;
 - malformed optional values;
 - platform/Location ID normalization;
 - credential values not appearing in logs/errors.
