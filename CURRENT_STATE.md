@@ -61,6 +61,13 @@ Current behaviour:
 
 Historical snapshots, approved-input batch orchestration, and production collection orchestration remain future work.
 
+`scripts/live_validate_inventory.py` provides a minimal single-device harness
+for exercising the shared transport, automatic identification, reconciliation,
+and local latest-snapshot storage without supplying a platform override. Direct
+execution prompts only for the target-device password and writes generated data
+under the ignored `data/live_validation/` path. The harness has deterministic
+unit coverage, but has not yet been run against live equipment.
+
 Documentation baseline:
 - `.agents/skills/device-inventory/SKILL.md`
 - `.agents/skills/excel-inventory/SKILL.md`
@@ -179,6 +186,7 @@ Current major implementation areas:
 - `src/orbitflow/inventory/` — identification, reconciliation, and latest JSON snapshot storage;
 - `scripts/live_validate_interfaces.py` — single-device interface integration validation;
 - `scripts/live_validate_vlans.py` — single-device VLAN integration validation harness;
+- `scripts/live_validate_inventory.py` — single-device inventory identification validation harness;
 - `tests/` — deterministic mocked/unit tests;
 - `.agents/skills/` — task/vendor-specific implementation guidance.
 
@@ -189,6 +197,9 @@ Current major implementation areas:
 - Cisco IOS/IOS-XE interactive CLI on Windows: live validated.
 - Current automated test suite includes transport and Cisco CLI regression coverage.
 - Device inventory tests cover all five platform identifiers and seven required families, override/ambiguity handling, reconciliation, failure retention, and secret exclusion.
+- The inventory live-validation harness has deterministic delegation, display,
+  reconciliation-event, and credential-exclusion coverage; live-equipment
+  validation has not yet been performed.
 - Interface capability tests cover all five platform identifiers with deterministic fake sessions.
 - Interface capability has now been live validated on Cisco IOS, Cisco IOS-XE, Cisco IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch.
 - VLAN observation has deterministic parser and command-selection coverage for
