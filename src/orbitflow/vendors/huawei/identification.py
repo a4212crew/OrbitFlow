@@ -11,7 +11,10 @@ def parse_huawei_identity(version: str, serial_output: str) -> dict[str, object]
     family_match = re.search(r"\bNE05E?\b", version, re.I)
     family = "NE05E" if family_match else "unknown"
     model_match = re.search(r"\bNE05E?[-A-Za-z0-9]*\b", version, re.I)
-    serial = _first(serial_output, r"(?mi)(?:ESN|Serial Number)\s*[: ]\s*([A-Za-z0-9-]+)")
+    serial = _first(
+        serial_output,
+        r"(?mi)(?:ESN(?:\s+of\s+master)?|Serial Number)\s*:\s*([A-Za-z0-9-]+)",
+    )
     software = _first(version, r"(?i)VRP.*?Version\s+([^\s,)]+)")
     uptime = _first(version, r"(?mi)^.+? uptime is (.+)$")
     return dict(hostname="", vendor="Huawei", platform="huawei_vrp",

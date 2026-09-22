@@ -53,13 +53,21 @@ def test_captured_cisco_outputs_detect_family_and_profile(tmp_path, version, inv
         assert context.serial_number == "FOC2643NCVA"
 
 
-def test_captured_huawei_ne05e_output(tmp_path):
+@pytest.mark.parametrize(
+    ("esn_output", "expected_serial"),
+    [
+        ("ESN : 2102350ABC", "2102350ABC"),
+        ("ESN of master:2102350DYT10K1000045", "2102350DYT10K1000045"),
+        ("Serial Number : NE05ESERIAL1", "NE05ESERIAL1"),
+    ],
+)
+def test_captured_huawei_ne05e_output(tmp_path, esn_output, expected_serial):
     outputs = {"show version": "% Unknown command", "screen-length 0 temporary": "",
                "display version": "Huawei Versatile Routing Platform Software\nVRP (R) software, Version 8.180\nNE05E-S2 uptime is 9 days",
-               "display esn": "ESN : 2102350ABC"}
+               "display esn": esn_output}
     service, _ = resolver(tmp_path, outputs, prompt="<VIC-RICH-REGEN-RTR1>")
     context = service.resolve(object(), management_ip="192.0.2.2")
-    assert (context.platform, context.device_family, context.serial_number) == ("huawei_vrp", "NE05E", "2102350ABC")
+    assert (context.platform, context.device_family, context.serial_number) == ("huawei_vrp", "NE05E", expected_serial)
     assert context.hostname == "VIC-RICH-REGEN-RTR1"
 
 
