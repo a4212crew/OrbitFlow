@@ -59,7 +59,9 @@ Current behaviour:
 - explicit controlled platform override support;
 - returned context is suitable for capability and workflow consumers without duplicating detection logic.
 
-Historical snapshots and production collection orchestration remain future work.
+Historical snapshots, approved-input and production batch orchestration, and
+production collection orchestration remain future work. The Excel batch script
+below is a validation/diagnostic harness, not production orchestration.
 
 `scripts/live_validate_inventory.py` provides a minimal single-device harness
 for exercising the shared transport, automatic identification, reconciliation,
