@@ -42,20 +42,24 @@ Detailed model: `docs/architecture/device-capability-oss-model.md`.
 
 ## Current Architecture
 
-### Device Inventory / Identification Direction
+### Device Inventory / Identification
 
-The next inventory layer is defined architecturally but not yet implemented in runtime code.
+The device inventory/identification MVP is implemented. `DeviceInventoryResolver`
+accepts an existing `DeviceSession` plus management IP, reuses that session, and
+returns normalized `DeviceContext` stable facts.
 
-Intended behaviour:
-- callers may begin with management IP plus runtime credentials/credential reference;
-- OrbitFlow detects or reuses vendor/platform context, device family/model, and any required capability profile, then collects stable device facts;
-- serial number is preferred for physical-device identity when reliably available;
-- management IP is a reachability attribute and may change without creating a duplicate physical device;
-- same IP with a different serial triggers re-identification as a likely replacement/reassignment;
-- credentials are never stored in inventory snapshots;
-- interface, VLAN, routing, service, counter, and log state remain live capability observations rather than permanent inventory facts;
-- the resolver returns DeviceContext for InterfaceService, VlanService, and future capabilities;
-- platform alone is not sufficient to select every capability path: ME3600X is treated as Cisco IOS while retaining an EVC-capable device profile so existing service-instance VLAN observation is preserved.
+Current behaviour:
+- deterministic detection of Cisco IOS, IOS-XE, IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch;
+- family/profile selection for ASR920, C3850, C3750X, ME3600X, NCS540, NE05E, and EdgeSwitch;
+- ME3600X remains `cisco_ios` while retaining an EVC-capable profile;
+- serial-first physical identity reconciliation across management-IP changes;
+- likely replacement/reassignment and hostname-collision event reporting, with no unsafe merge when serial evidence is absent;
+- atomic latest JSON snapshots containing stable facts only and no credentials;
+- failed attempts preserve the last successful facts while updating sanitized attempt status and error metadata;
+- explicit controlled platform override support;
+- returned context is suitable for capability and workflow consumers without duplicating detection logic.
+
+Historical snapshots, approved-input batch orchestration, and production collection orchestration remain future work.
 
 Documentation baseline:
 - `.agents/skills/device-inventory/SKILL.md`
@@ -172,6 +176,7 @@ Current major implementation areas:
 - `src/orbitflow/vendors/cisco/` — Cisco IOS/IOS-XE CLI behaviour;
 - `src/orbitflow/vendors/huawei/` and `src/orbitflow/vendors/ubiquiti/` — vendor interface collection/parsing;
 - `src/orbitflow/capabilities/` and `src/orbitflow/models.py` — reusable interface/VLAN capabilities and normalized records;
+- `src/orbitflow/inventory/` — identification, reconciliation, and latest JSON snapshot storage;
 - `scripts/live_validate_interfaces.py` — single-device interface integration validation;
 - `scripts/live_validate_vlans.py` — single-device VLAN integration validation harness;
 - `tests/` — deterministic mocked/unit tests;
@@ -183,6 +188,7 @@ Current major implementation areas:
 - Linux transport: live validated.
 - Cisco IOS/IOS-XE interactive CLI on Windows: live validated.
 - Current automated test suite includes transport and Cisco CLI regression coverage.
+- Device inventory tests cover all five platform identifiers and seven required families, override/ambiguity handling, reconciliation, failure retention, and secret exclusion.
 - Interface capability tests cover all five platform identifiers with deterministic fake sessions.
 - Interface capability has now been live validated on Cisco IOS, Cisco IOS-XE, Cisco IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch.
 - VLAN observation has deterministic parser and command-selection coverage for
@@ -225,17 +231,11 @@ Current major implementation areas:
 ## Known Limitations
 
 - Current SSH host-key defaults are permissive and therefore do not provide MITM protection.
-- Inventory and production collection workflows are not yet implemented.
+- Inventory batch/input orchestration and historical snapshot retention are not yet implemented; the MVP stores latest state only.
 - Live-device testing is integration validation and does not replace deterministic unit tests.
 
 ## Current Development Focus
 
-The read-only multi-vendor interface and VLAN observation capabilities are implemented and remain reusable live-observation layers.
+The identification MVP is available as the observed-context layer. Future work can integrate approved input sources and production batch orchestration without moving live interface/VLAN state into inventory.
 
-The next development focus is the device inventory/identification MVP: resolve a supplied management IP and credentials into observed stable device facts and DeviceContext, with conservative platform detection and physical-device identity reconciliation. This layer must not absorb interface/VLAN state or compliance logic.
-
-Relevant skills:
-- `.agents/skills/vlan-observation/SKILL.md`
-- `.agents/skills/cisco-network-cli/SKILL.md`
-- `.agents/skills/huawei-network-cli/SKILL.md`
-- `.agents/skills/ubiquiti-network-cli/SKILL.md`
+Relevant skill: `.agents/skills/device-inventory/SKILL.md`.

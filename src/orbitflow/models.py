@@ -66,3 +66,26 @@ class VlanState:
     interfaces: tuple[InterfaceVlanObservation, ...]
     objects: tuple[VlanObject, ...]
     collection_time: datetime
+
+
+@dataclass(frozen=True)
+class DeviceContext:
+    """Latest observed stable identity and capability-selection context."""
+
+    device_id: str
+    management_ip: str
+    observed_management_ips: tuple[str, ...]
+    hostname: str
+    vendor: str
+    platform: str
+    device_family: str
+    hardware_model: str
+    capability_profile: str
+    capability_flags: tuple[str, ...]
+    serial_number: str
+    software_version: str
+    uptime: str
+    last_successful_collection: datetime
+    last_collection_attempt: datetime
+    collection_status: str = "success"
+    collection_error: str = ""
