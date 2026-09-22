@@ -53,8 +53,10 @@ The normalized device identity should be able to represent, where available:
 - preferred/recent management IP;
 - hostname;
 - vendor;
-- OrbitFlow platform identifier;
+- OrbitFlow platform/OS-family identifier;
+- device family/profile;
 - hardware model;
+- normalized capability flags/profile where required for safe adapter behaviour;
 - serial number;
 - software/firmware version;
 - uptime;
@@ -88,6 +90,8 @@ Detection should be conservative and deterministic:
 6. allow an explicit operator platform override for controlled testing/edge cases.
 
 Do not guess a platform from a single weak keyword or interface naming convention.
+
+Platform/OS family and device family/capability profile are separate outputs. A device may run one OS family while requiring model-specific capability behaviour. For example, an ME3600X should be identified as Cisco IOS from its software output, while still carrying an ME3600X/EVC-capable device profile so VLAN service-instance parsing remains enabled.
 
 Vendor-specific probe commands and signatures belong in vendor adapters/skills. Higher-level workflows must not contain their own Cisco/Huawei/Ubiquiti fingerprint logic.
 
@@ -160,6 +164,7 @@ Interface/VLAN/etc. capabilities must not reimplement platform discovery.
 
 Deterministic tests should cover:
 - successful platform identification for supported fingerprints;
+- device-family/model identification and capability-profile selection independent of OS family;
 - unknown/ambiguous platform handling;
 - explicit platform override;
 - stable fact normalization;
