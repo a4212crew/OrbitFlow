@@ -12,10 +12,9 @@ def parse_huawei_identity(version: str, serial_output: str) -> dict[str, object]
     family = "NE05E" if family_match else "unknown"
     model_match = re.search(r"\bNE05E?[-A-Za-z0-9]*\b", version, re.I)
     serial = _first(serial_output, r"(?mi)(?:ESN|Serial Number)\s*[: ]\s*([A-Za-z0-9-]+)")
-    hostname = _first(version, r"(?mi)^(.+?) uptime is ")
     software = _first(version, r"(?i)VRP.*?Version\s+([^\s,)]+)")
     uptime = _first(version, r"(?mi)^.+? uptime is (.+)$")
-    return dict(hostname=hostname, vendor="Huawei", platform="huawei_vrp",
+    return dict(hostname="", vendor="Huawei", platform="huawei_vrp",
                 device_family=family, hardware_model=model_match.group(0) if model_match else "",
                 capability_profile="ne05e" if family == "NE05E" else "unknown",
                 capability_flags=("dot1q_subinterface",) if family == "NE05E" else (),

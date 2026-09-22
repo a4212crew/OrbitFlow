@@ -33,6 +33,11 @@ def parse_cisco_identity(version: str, inventory: str) -> dict[str, object] | No
     )
     hostname = _first(version, r"(?mi)^([A-Za-z0-9_.-]+) uptime is ")
     serial = _first(inventory, r"(?mi)(?:SN:|Processor board ID)\s*([A-Za-z0-9-]+)")
+    if not serial and platform == "cisco_xr":
+        serial = _first(
+            inventory,
+            r"(?mi)^Serial Num\s+Rack Num[^\n]*\n\s*([A-Za-z0-9-]+)\s+\d+\b",
+        )
     if not serial:
         serial = _first(version, r"(?mi)^Processor board ID\s+([A-Za-z0-9-]+)")
     software = _first(version, r"(?i)(?:Cisco IOS XR Software, Version|Cisco IOS XE Software, Version|Version)\s+([^,\s]+)")

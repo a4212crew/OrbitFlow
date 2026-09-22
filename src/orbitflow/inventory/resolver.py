@@ -10,7 +10,9 @@ from orbitflow.transport import DeviceSession
 from orbitflow.vendors.common import PromptCLI
 from orbitflow.vendors.cisco.identification import parse_cisco_identity
 from orbitflow.vendors.huawei.identification import parse_huawei_identity
+from orbitflow.vendors.huawei.interfaces import extract_huawei_hostname
 from orbitflow.vendors.ubiquiti.identification import parse_edgeswitch_identity
+from orbitflow.vendors.ubiquiti.interfaces import extract_edgeswitch_hostname
 
 from .store import JsonInventoryStore
 
@@ -20,6 +22,8 @@ class DeviceInventoryError(Exception):
 
 
 class _Runner(Protocol):
+    prompt: str
+
     def run_command(self, command: str, timeout: float = 10.0) -> str: ...
 
 
@@ -55,14 +59,15 @@ class DeviceInventoryResolver:
                 display_version = runner.run_command("display version", timeout=self._timeout)
             facts, detected_group = self._detect(show_version, display_version, platform_override)
             if detected_group == "cisco":
-                details = runner.run_command("show inventory", timeout=self._timeout)
+                command = "show chassis" if facts.get("platform") == "cisco_xr" else "show inventory"
+                details = runner.run_command(command, timeout=self._timeout)
                 facts = parse_cisco_identity(show_version, details) or facts
             elif detected_group == "huawei":
                 details = runner.run_command("display esn", timeout=self._timeout)
                 facts = parse_huawei_identity(display_version, details) or facts
+                facts["hostname"] = extract_huawei_hostname(runner.prompt)
             else:
-                details = runner.run_command("show system", timeout=self._timeout)
-                facts = parse_edgeswitch_identity(show_version, details) or facts
+                facts["hostname"] = extract_edgeswitch_hostname(runner.prompt)
             if platform_override and facts.get("device_family") != "ME3600X":
                 facts["platform"] = platform_override
             if not facts.get("hostname"):

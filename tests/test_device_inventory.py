@@ -13,20 +13,23 @@ NOW = datetime(2026, 9, 22, 12, 0, tzinfo=timezone.utc)
 
 
 class Runner:
-    def __init__(self, outputs):
+    def __init__(self, outputs, prompt="device#"):
         self.outputs = outputs
+        self.prompt = prompt
+        self.commands = []
 
     def run_command(self, command, timeout=10.0):
+        self.commands.append(command)
         value = self.outputs.get(command, "% Invalid input detected")
         if isinstance(value, Exception):
             raise value
         return value
 
 
-def resolver(tmp_path, outputs, ids=None):
+def resolver(tmp_path, outputs, ids=None, prompt="device#"):
     ids = ids or (f"id-{number}" for number in itertools.count(1))
     store = JsonInventoryStore(tmp_path / "inventory.json", id_factory=lambda: next(ids))
-    return DeviceInventoryResolver(store, clock=lambda: NOW, runner_factory=lambda _: Runner(outputs)), store
+    return DeviceInventoryResolver(store, clock=lambda: NOW, runner_factory=lambda _: Runner(outputs, prompt)), store
 
 
 @pytest.mark.parametrize(
@@ -36,32 +39,39 @@ def resolver(tmp_path, outputs, ids=None):
         ("Cisco IOS Software, Version 16.12\nsw uptime is 1 day\nWS-C3850-24T", "SN: CAT2", "C3850", "cisco_xe", "c3850_switching"),
         ("Cisco IOS Software, Version 15.2\nsw2 uptime is 4 days\nWS-C3750X-48P", "SN: CAT3", "C3750X", "cisco_ios", "c3750x_switching"),
         ("Cisco IOS Software, Version 15.3\nmetro uptime is 3 weeks\nME-3600X-24CX", "SN: CAT4", "ME3600X", "cisco_ios", "me3600x_evc"),
-        ("Cisco IOS XR Software, Version 7.7.2\ncore uptime is 1 year\nNCS-540", "SN: CAT5", "NCS540", "cisco_xr", "ncs540_l2"),
+        ("Cisco IOS XR Software, Version 7.7.2\ncore uptime is 1 year\nNCS-540", "Serial Num Rack Num Rack Type Rack State Data Plane State\nFOC2643NCVA 0 NCS540-RTR Active On", "NCS540", "cisco_xr", "ncs540_l2"),
     ],
 )
 def test_captured_cisco_outputs_detect_family_and_profile(tmp_path, version, inventory, family, platform, profile):
-    service, _ = resolver(tmp_path, {"show version": version, "show inventory": inventory})
+    details_command = "show chassis" if family == "NCS540" else "show inventory"
+    service, _ = resolver(tmp_path, {"show version": version, details_command: inventory})
     context = service.resolve(object(), management_ip="192.0.2.1")
     assert (context.device_family, context.platform, context.capability_profile) == (family, platform, profile)
     if family == "ME3600X":
         assert "evc" in context.capability_flags
+    if family == "NCS540":
+        assert context.serial_number == "FOC2643NCVA"
 
 
 def test_captured_huawei_ne05e_output(tmp_path):
     outputs = {"show version": "% Unknown command", "screen-length 0 temporary": "",
                "display version": "Huawei Versatile Routing Platform Software\nVRP (R) software, Version 8.180\nNE05E-S2 uptime is 9 days",
                "display esn": "ESN : 2102350ABC"}
-    service, _ = resolver(tmp_path, outputs)
+    service, _ = resolver(tmp_path, outputs, prompt="<VIC-RICH-REGEN-RTR1>")
     context = service.resolve(object(), management_ip="192.0.2.2")
     assert (context.platform, context.device_family, context.serial_number) == ("huawei_vrp", "NE05E", "2102350ABC")
+    assert context.hostname == "VIC-RICH-REGEN-RTR1"
 
 
 def test_captured_edgeswitch_output(tmp_path):
-    outputs = {"show version": "Ubiquiti EdgeSwitch", "display version": "% Invalid",
-               "show system": "System Name........................ access-sw\nMachine Type....................... EdgeSwitch 48\nSerial Number...................... ES123\nSoftware Version................... 1.10.3\nSystem Up Time..................... 12 days"}
-    service, _ = resolver(tmp_path, outputs)
+    outputs = {"show version": "Ubiquiti EdgeSwitch\nMachine Model...................... EdgeSwitch 48\nSerial Number...................... ES123\nSoftware Version................... 1.10.3\nSystem Up Time..................... 12 days"}
+    runner = Runner(outputs, prompt="(access-sw) #")
+    store = JsonInventoryStore(tmp_path / "inventory.json", id_factory=lambda: "edge-id")
+    service = DeviceInventoryResolver(store, clock=lambda: NOW, runner_factory=lambda _: runner)
     context = service.resolve(object(), management_ip="192.0.2.3")
     assert (context.platform, context.device_family, context.hardware_model) == ("ubiquiti_edgeswitch", "EdgeSwitch", "EdgeSwitch 48")
+    assert context.hostname == "access-sw"
+    assert runner.commands == ["show version"]
 
 
 def test_same_serial_new_ip_reuses_identity(tmp_path):
