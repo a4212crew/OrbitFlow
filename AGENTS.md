@@ -11,7 +11,7 @@ Design for approximately 1,500 network devices without assuming all devices beha
 ## 2. Core Operating Principles
 
 1. **Inventory is observed device identity/context, not a CMDB or authoritative network source of truth.** Do not hardcode production device lists into workflow code; resolve targets through approved input sources and the device-inventory layer where available.
-2. **Vendor-specific behaviour must remain isolated.** Cisco IOS, IOS-XE, IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch are not one generic CLI platform.
+2. **Vendor-specific behaviour must remain isolated.** Cisco IOS, IOS-XE, IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch are not one generic CLI platform. Platform/OS family and device family/capability profile are separate concepts; platform alone must not be assumed to determine every supported feature or parser path.
 3. **Use deterministic runtime behaviour.** Runtime configuration generation must use explicit logic/templates; do not use an LLM at runtime to invent network configuration.
 4. **Isolate operational failures.** One failed device or input row must not terminate a batch unless continuing would create a safety risk.
 5. **Protect credentials and secrets.** Never log passwords, OTPs, private keys, tokens, or full secret-bearing environment dumps. Do not commit real credentials.
@@ -81,6 +81,7 @@ Approved input sources such as Excel, CSV, CLI, API, or future integrations may 
 
 The device-inventory layer:
 - identifies the reachable physical device and returns normalized device context;
+- records both platform/OS family and device family/model/capability profile where needed for safe capability selection;
 - prefers serial number as the physical-device identity when available;
 - treats management IP as a reachability address rather than the permanent device identity;
 - stores relatively stable observed device facts only;
@@ -110,6 +111,7 @@ Examples include interface state, VLAN state, MAC tables, routing state, service
 Rules:
 - workflows should call reusable capabilities rather than embed raw vendor commands;
 - higher-level workflows should consume a resolved `DeviceContext` (or equivalent) rather than independently rediscover vendor/platform logic;
+- capability selection may use both platform and device family/capability profile; do not use OS family alone as a proxy for feature support;
 - vendor commands and parsing remain isolated in vendor-specific modules;
 - raw CLI output should be normalized into structured models where practical;
 - analysis/decision logic should operate on normalized data rather than vendor-specific text;
