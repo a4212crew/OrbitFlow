@@ -59,7 +59,9 @@ Current behaviour:
 - explicit controlled platform override support;
 - returned context is suitable for capability and workflow consumers without duplicating detection logic.
 
-Historical snapshots, approved-input batch orchestration, and production collection orchestration remain future work.
+Historical snapshots, approved-input and production batch orchestration, and
+production collection orchestration remain future work. The Excel batch script
+below is a validation/diagnostic harness, not production orchestration.
 
 `scripts/live_validate_inventory.py` provides a minimal single-device harness
 for exercising the shared transport, automatic identification, reconciliation,
@@ -67,6 +69,13 @@ and local latest-snapshot storage without supplying a platform override. Direct
 execution prompts only for the target-device password and writes generated data
 under the ignored `data/live_validation/` path. The harness has deterministic
 unit coverage, but has not yet been run against live equipment.
+
+`scripts/live_validate_inventory_batch.py` provides sequential live validation
+from Excel rows containing `management_ip`, `username`, and `password`. It uses
+per-row credentials only at runtime, retains the same latest per-device snapshot
+behavior, performs automatic platform/family detection, isolates device
+failures, and writes a credential-free consolidated diagnostic result under the
+ignored `data/live_validation/` path.
 
 Documentation baseline:
 - `.agents/skills/device-inventory/SKILL.md`
@@ -187,6 +196,7 @@ Current major implementation areas:
 - `scripts/live_validate_interfaces.py` — single-device interface integration validation;
 - `scripts/live_validate_vlans.py` — single-device VLAN integration validation harness;
 - `scripts/live_validate_inventory.py` — single-device inventory identification validation harness;
+- `scripts/live_validate_inventory_batch.py` — sequential Excel-driven inventory validation harness;
 - `tests/` — deterministic mocked/unit tests;
 - `.agents/skills/` — task/vendor-specific implementation guidance.
 
