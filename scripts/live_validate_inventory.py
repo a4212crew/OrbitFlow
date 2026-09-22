@@ -95,6 +95,7 @@ def run_live_validation(
         context = resolver.resolve(session, management_ip=device_host)
 
     _print_context(context, resolver.last_events, output=output)
+    print(f"snapshot_path: {inventory_path}", file=output)
     return context
 
 
