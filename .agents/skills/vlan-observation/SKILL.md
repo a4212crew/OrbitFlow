@@ -16,6 +16,7 @@ Vendor parsers report observed facts only. A separate analysis/policy layer will
 
 ## Architecture Rules
 
+- Consume a resolved DeviceContext/platform from the device-inventory layer when orchestration starts from only an IP; do not implement independent platform discovery here.
 - Reuse `connect_device(...)` / `DeviceSession`; do not create new transport logic.
 - Keep vendor commands/parsers isolated.
 - Normalize into common structured VLAN state.
