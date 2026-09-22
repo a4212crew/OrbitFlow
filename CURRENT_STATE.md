@@ -48,13 +48,14 @@ The next inventory layer is defined architecturally but not yet implemented in r
 
 Intended behaviour:
 - callers may begin with management IP plus runtime credentials/credential reference;
-- OrbitFlow detects or reuses vendor/platform context and collects stable device facts;
+- OrbitFlow detects or reuses vendor/platform context, device family/model, and any required capability profile, then collects stable device facts;
 - serial number is preferred for physical-device identity when reliably available;
 - management IP is a reachability attribute and may change without creating a duplicate physical device;
 - same IP with a different serial triggers re-identification as a likely replacement/reassignment;
 - credentials are never stored in inventory snapshots;
 - interface, VLAN, routing, service, counter, and log state remain live capability observations rather than permanent inventory facts;
-- the resolver returns DeviceContext for InterfaceService, VlanService, and future capabilities.
+- the resolver returns DeviceContext for InterfaceService, VlanService, and future capabilities;
+- platform alone is not sufficient to select every capability path: ME3600X is treated as Cisco IOS while retaining an EVC-capable device profile so existing service-instance VLAN observation is preserved.
 
 Documentation baseline:
 - `.agents/skills/device-inventory/SKILL.md`
