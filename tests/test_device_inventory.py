@@ -33,24 +33,33 @@ def resolver(tmp_path, outputs, ids=None, prompt="device#"):
 
 
 @pytest.mark.parametrize(
-    "version,inventory,family,platform,profile",
+    "version,inventory,family,hardware_model,platform,profile",
     [
-        ("Cisco IOS XE Software, Version 17.06.07\nedge uptime is 2 weeks\nASR-920-24SZ", 'NAME: chassis, DESCR: ASR-920-24SZ\nSN: CAT1', "ASR920", "cisco_xe", "asr920_evc"),
-        ("Cisco IOS Software, Version 16.12\nsw uptime is 1 day\nWS-C3850-24T", "SN: CAT2", "C3850", "cisco_xe", "c3850_switching"),
-        ("Cisco IOS Software, Version 15.2\nsw2 uptime is 4 days\nWS-C3750X-48P", "SN: CAT3", "C3750X", "cisco_ios", "c3750x_switching"),
-        ("Cisco IOS Software, Version 15.3\nmetro uptime is 3 weeks\nME-3600X-24CX", "SN: CAT4", "ME3600X", "cisco_ios", "me3600x_evc"),
-        ("Cisco IOS XR Software, Version 7.7.2\ncore uptime is 1 year\nNCS-540", "Serial Num Rack Num Rack Type Rack State Data Plane State\nFOC2643NCVA 0 NCS540-RTR Active On", "NCS540", "cisco_xr", "ncs540_l2"),
+        ("Cisco IOS XE Software, Version 17.06.07\nedge uptime is 2 weeks\ncisco ASR920 processor", 'NAME: "Chassis", DESCR: "ASR 920 chassis"\nPID: ASR-920-24SZ-M, VID: V01, SN: CAT1', "ASR920", "ASR-920-24SZ-M", "cisco_xe", "asr920_evc"),
+        ("Cisco IOS XE Software, Version 16.12\nsw uptime is 1 day\nModel Number : WS-C3850-12XS", "SN: CAT2", "C3850", "WS-C3850-12XS", "cisco_xe", "c3850_switching"),
+        ("Cisco IOS Software, Version 15.2\nsw2 uptime is 4 days\nWS-C3750X", "NAME: chassis\nPID: WS-C3750X-48T-S, VID: V02\nSN: CAT3", "C3750X", "WS-C3750X-48T-S", "cisco_ios", "c3750x_switching"),
+        ("Cisco IOS Software, Version 15.3\nmetro uptime is 3 weeks\nME-3600X", "NAME: chassis\nPID: ME-3600X-24FS-M, VID: V01\nSN: CAT4", "ME3600X", "ME-3600X-24FS-M", "cisco_ios", "me3600x_evc"),
+        ("Cisco IOS XR Software, Version 7.7.2\ncore uptime is 1 year\ncisco N540X-6Z18G-SYS-D processor", "Serial Num Rack Num Rack Type Rack State Data Plane State\nFOC2643NCVA 0 NCS540-RTR Active On", "NCS540", "N540X-6Z18G-SYS-D", "cisco_xr", "ncs540_l2"),
     ],
 )
-def test_captured_cisco_outputs_detect_family_and_profile(tmp_path, version, inventory, family, platform, profile):
+def test_captured_cisco_outputs_detect_family_model_and_profile(tmp_path, version, inventory, family, hardware_model, platform, profile):
     details_command = "show chassis" if family == "NCS540" else "show inventory"
     service, _ = resolver(tmp_path, {"show version": version, details_command: inventory})
     context = service.resolve(object(), management_ip="192.0.2.1")
     assert (context.device_family, context.platform, context.capability_profile) == (family, platform, profile)
+    assert context.hardware_model == hardware_model
     if family == "ME3600X":
         assert "evc" in context.capability_flags
     if family == "NCS540":
         assert context.serial_number == "FOC2643NCVA"
+
+
+def test_cisco_family_detection_retains_observed_generic_model(tmp_path):
+    outputs = {"show version": "Cisco IOS XE Software, Version 17.06.07\nedge uptime is 2 weeks\nASR920", "show inventory": "SN: CAT1"}
+    service, _ = resolver(tmp_path, outputs)
+    context = service.resolve(object(), management_ip="192.0.2.5")
+    assert context.device_family == "ASR920"
+    assert context.hardware_model == "ASR920"
 
 
 def test_ncs540_show_chassis_accepts_live_dashed_separator(tmp_path):
