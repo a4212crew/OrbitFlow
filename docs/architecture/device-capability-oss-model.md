@@ -17,11 +17,28 @@ The REST/API layer must not reimplement vendor-specific device logic.
 Responsibilities:
 - Teleport and SSH transport;
 - device sessions;
-- inventory access;
+- target input sources;
+- device identification/inventory resolution;
 - credential integration;
 - common logging and execution plumbing.
 
 Higher layers must not recreate OS-specific transport.
+
+### Device Identification / Inventory Resolution
+
+OrbitFlow separates target input from observed device identity.
+
+A caller may begin with only a management IP plus credentials/credential reference. The device resolver should determine or reuse vendor/platform context, collect relatively stable device facts, reconcile physical identity, and return a normalized `DeviceContext`.
+
+Inventory is not a CMDB or authoritative network source of truth. It is latest-known observed context used to identify the physical device and select reusable platform capabilities.
+
+Identity rules:
+- same serial + different IP -> same physical device;
+- same IP + different serial -> likely replacement/reassignment and requires re-identification;
+- same hostname + different serial -> distinct devices / hostname collision;
+- no reliable serial -> do not aggressively merge.
+
+Volatile state such as interface status, VLANs, routing/service state, counters, and logs remains in live observation capabilities and is recollected when requested.
 
 ### 2. Device Capability Layer
 
@@ -149,7 +166,8 @@ OrbitFlow should move toward a device facade/factory that selects the correct ve
 Conceptual example:
 
 ```python
-device = device_factory(inventory_record)
+device_context = device_resolver.resolve(target, credentials)
+device = device_factory(device_context)
 
 interfaces = device.get_interfaces()
 vlans = device.get_vlans()
@@ -160,6 +178,21 @@ device.verify(...)
 ```
 
 The exact class structure should evolve incrementally. Do not create empty abstractions or directories before they are needed, but new features should follow this direction.
+
+## Capability Composition from DeviceContext
+
+The intended request path is:
+
+```text
+Excel / CSV / CLI / API input
+        -> Device Inventory / Resolver
+        -> DeviceContext
+        -> reusable device capabilities
+        -> normalized observations
+        -> workflows / analysis / reporting
+```
+
+First run for an unknown target may perform platform detection and stable fact collection before invoking the requested capability. Subsequent runs should reuse known context but still perform enough identity validation to detect replacement/reassignment. Live interface/VLAN/routing/service/log observations are recollected rather than treated as permanent inventory.
 
 ## Vendor Isolation
 
