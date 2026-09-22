@@ -51,6 +51,9 @@ returns normalized `DeviceContext` stable facts.
 Current behaviour:
 - deterministic detection of Cisco IOS, IOS-XE, IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch;
 - family/profile selection for ASR920, C3850, C3750X, ME3600X, NCS540, NE05E, and EdgeSwitch;
+- separate normalized `device_family` values for capability selection from the
+  most specific observed `hardware_model`/chassis PID available in the existing
+  identification command output;
 - ME3600X remains `cisco_ios` while retaining an EVC-capable profile;
 - serial-first physical identity reconciliation across management-IP changes;
 - likely replacement/reassignment and hostname-collision event reporting, with no unsafe merge when serial evidence is absent;
