@@ -56,6 +56,8 @@ Current behaviour:
   identification command output;
 - ME3600X remains `cisco_ios` while retaining an EVC-capable profile;
 - serial-first physical identity reconciliation across management-IP changes;
+- safe enrichment of one existing serial-less identity when the same management
+  IP later yields a serial, without hostname/model-based merging;
 - likely replacement/reassignment and hostname-collision event reporting, with no unsafe merge when serial evidence is absent;
 - atomic latest JSON snapshots containing stable facts only and no credentials;
 - failed attempts preserve the last successful facts while updating sanitized attempt status and error metadata;
@@ -70,8 +72,14 @@ below is a validation/diagnostic harness, not production orchestration.
 for exercising the shared transport, automatic identification, reconciliation,
 and local latest-snapshot storage without supplying a platform override. Direct
 execution prompts only for the target-device password and writes generated data
-under the ignored `data/live_validation/` path. The harness has deterministic
-unit coverage, but has not yet been run against live equipment.
+under the ignored `data/live_validation/` path. Each run prints identity-focused
+before/after inventory state, reconciliation events, and total device counts so
+operators can validate management-IP moves, replacement/IP reassignment, and
+later serial discovery through the existing store and resolver. The harness has
+been used successfully for live inventory identification validation. The new
+`management_ip_changed`, replacement/reassignment, and
+`serial_number_discovered` reconciliation scenarios have deterministic coverage
+but have not yet been live validated.
 
 `scripts/live_validate_inventory_batch.py` provides sequential live validation
 from Excel rows containing `management_ip`, `username`, and `password`. It uses
@@ -209,10 +217,15 @@ Current major implementation areas:
 - Linux transport: live validated.
 - Cisco IOS/IOS-XE interactive CLI on Windows: live validated.
 - Current automated test suite includes transport and Cisco CLI regression coverage.
-- Device inventory tests cover all five platform identifiers and seven required families, override/ambiguity handling, reconciliation, failure retention, and secret exclusion.
-- The inventory live-validation harness has deterministic delegation, display,
-  reconciliation-event, and credential-exclusion coverage; live-equipment
-  validation has not yet been performed.
+- Device inventory tests cover all five platform identifiers and seven required
+  families, override/ambiguity handling, same-serial IP moves, same-IP serial
+  replacement, safe same-IP serial enrichment, conservative no-serial handling,
+  failure retention, and secret exclusion.
+- The inventory live-validation harness has been used successfully for live
+  identification validation and has deterministic delegation, display,
+  reconciliation-event, and credential-exclusion coverage. The new management-IP
+  move, replacement/reassignment, and serial-discovery scenarios have not yet
+  been live validated.
 - Interface capability tests cover all five platform identifiers with deterministic fake sessions.
 - Interface capability has now been live validated on Cisco IOS, Cisco IOS-XE, Cisco IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch.
 - VLAN observation has deterministic parser and command-selection coverage for

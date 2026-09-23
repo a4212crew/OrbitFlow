@@ -80,6 +80,29 @@ def _print_context(
     print(f"reconciliation_events: {_format_value(events)}", file=output)
 
 
+def _print_inventory_state(
+    label: str, contexts: tuple[DeviceContext, ...], *, output: TextIO
+) -> None:
+    """Print identity-focused inventory state for before/after comparison."""
+    print(f"{label} inventory state:", file=output)
+    print(f"total_stored_device_count: {len(contexts)}", file=output)
+    if not contexts:
+        print("devices: []", file=output)
+        return
+    for index, context in enumerate(contexts, start=1):
+        print(f"device[{index}]:", file=output)
+        for field_name in (
+            "device_id",
+            "serial_number",
+            "management_ip",
+            "observed_management_ips",
+        ):
+            print(
+                f"  {field_name}: {_format_value(getattr(context, field_name))}",
+                file=output,
+            )
+
+
 def run_live_validation(
     device_host: str,
     credentials: DeviceCredentials,
@@ -91,10 +114,12 @@ def run_live_validation(
     """Identify one live device, persist its snapshot, and print its context."""
     store = JsonInventoryStore(inventory_path)
     resolver = DeviceInventoryResolver(store)
+    _print_inventory_state("Before", store.contexts(), output=output)
     with connect_device(device_host, credentials, transport_config) as session:
         context = resolver.resolve(session, management_ip=device_host)
 
     _print_context(context, resolver.last_events, output=output)
+    _print_inventory_state("After", store.contexts(), output=output)
     print(f"snapshot_path: {inventory_path}", file=output)
     return context
 

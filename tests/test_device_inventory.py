@@ -111,26 +111,79 @@ def test_same_serial_new_ip_reuses_identity(tmp_path):
     outputs = {"show version": "Cisco IOS Software, Version 15.2\none uptime is 1 day\nWS-C3750X", "show inventory": "SN: SAME"}
     service, store = resolver(tmp_path, outputs)
     first = service.resolve(object(), management_ip="192.0.2.10")
+    before = store.contexts()
+    before_events = service.last_events
     second = service.resolve(object(), management_ip="192.0.2.11")
+    assert len(before) == 1
+    assert before_events == ()
+    assert before[0].device_id == first.device_id
+    assert before[0].serial_number == "SAME"
+    assert before[0].management_ip == "192.0.2.10"
+    assert before[0].observed_management_ips == ("192.0.2.10",)
     assert second.device_id == first.device_id
+    assert second.serial_number == "SAME"
+    assert second.management_ip == "192.0.2.11"
     assert second.observed_management_ips == ("192.0.2.10", "192.0.2.11")
     assert service.last_events == ("management_ip_changed",)
     assert len(store.contexts()) == 1
 
 
-def test_replacement_hostname_collision_and_missing_serial_do_not_merge(tmp_path):
-    ids = iter(("one", "two", "three", "four"))
+def test_same_ip_new_serial_keeps_physical_identities_separate(tmp_path):
+    ids = iter(("one", "two"))
     first_outputs = {"show version": "Cisco IOS Software, Version 15.2\nshared uptime is 1 day\nWS-C3750X", "show inventory": "SN: OLD"}
     service, store = resolver(tmp_path, first_outputs, ids)
-    service.resolve(object(), management_ip="192.0.2.20")
+    first = service.resolve(object(), management_ip="192.0.2.20")
+    before = store.contexts()
+    before_events = service.last_events
     service._runner_factory = lambda _: Runner({**first_outputs, "show inventory": "SN: NEW"})
-    service.resolve(object(), management_ip="192.0.2.20")
+    second = service.resolve(object(), management_ip="192.0.2.20")
+    assert len(before) == 1
+    assert before_events == ()
+    assert before[0].device_id == first.device_id == "one"
+    assert before[0].serial_number == "OLD"
+    assert before[0].management_ip == "192.0.2.20"
+    assert before[0].observed_management_ips == ("192.0.2.20",)
+    assert second.device_id == "two"
+    assert second.device_id != first.device_id
+    assert second.serial_number == "NEW"
+    assert second.management_ip == "192.0.2.20"
+    assert second.observed_management_ips == ("192.0.2.20",)
     assert set(service.last_events) == {"likely_replacement_or_ip_reassignment", "hostname_collision"}
-    service._runner_factory = lambda _: Runner({**first_outputs, "show inventory": "no serial reported"})
+    assert len(store.contexts()) == 2
+
+
+def test_same_ip_later_serial_safely_enriches_existing_identity(tmp_path):
+    ids = iter(("one", "unused"))
+    outputs = {"show version": "Cisco IOS Software, Version 15.2\nshared uptime is 1 day\nWS-C3750X", "show inventory": "no serial reported"}
+    service, store = resolver(tmp_path, outputs, ids)
+    first = service.resolve(object(), management_ip="192.0.2.30")
+    before = store.contexts()
+    before_events = service.last_events
+    service._runner_factory = lambda _: Runner({**outputs, "show inventory": "SN: DISCOVERED"})
+    enriched = service.resolve(object(), management_ip="192.0.2.30")
+    assert len(before) == 1
+    assert before_events == ()
+    assert before[0].device_id == first.device_id == "one"
+    assert before[0].serial_number == ""
+    assert before[0].management_ip == "192.0.2.30"
+    assert before[0].observed_management_ips == ("192.0.2.30",)
+    assert enriched.device_id == first.device_id
+    assert enriched.serial_number == "DISCOVERED"
+    assert enriched.management_ip == "192.0.2.30"
+    assert enriched.observed_management_ips == ("192.0.2.30",)
+    assert service.last_events == ("serial_number_discovered",)
+    assert len(store.contexts()) == 1
+
+
+def test_repeated_missing_serial_and_matching_hostname_model_do_not_merge(tmp_path):
+    ids = iter(("one", "two"))
+    outputs = {"show version": "Cisco IOS Software, Version 15.2\nshared uptime is 1 day\nWS-C3750X", "show inventory": "no serial reported"}
+    service, store = resolver(tmp_path, outputs, ids)
     third = service.resolve(object(), management_ip="192.0.2.30")
     fourth = service.resolve(object(), management_ip="192.0.2.30")
     assert third.device_id != fourth.device_id
-    assert len(store.contexts()) == 4
+    assert service.last_events == ()
+    assert len(store.contexts()) == 2
 
 
 def test_failure_preserves_success_and_never_persists_secrets(tmp_path):
