@@ -45,6 +45,10 @@ def test_live_validation_delegates_to_transport_resolver_and_store(monkeypatch):
         def __init__(self, path):
             calls.append(("store", path))
 
+        def contexts(self):
+            calls.append(("contexts",))
+            return ()
+
     class FakeResolver:
         def __init__(self, store):
             calls.append(("resolver", store))
@@ -76,13 +80,15 @@ def test_live_validation_delegates_to_transport_resolver_and_store(monkeypatch):
     assert result is context
     assert calls[0] == ("store", Path("validation/inventory.json"))
     assert calls[1][0] == "resolver"
-    assert calls[2] == ("connect", "192.0.2.10", credentials, config)
-    assert calls[3] == (
+    assert calls[2] == ("contexts",)
+    assert calls[3] == ("connect", "192.0.2.10", credentials, config)
+    assert calls[4] == (
         "resolve",
         session,
         {"management_ip": "192.0.2.10"},
     )
-    assert "platform_override" not in calls[3][2]
+    assert calls[5] == ("contexts",)
+    assert "platform_override" not in calls[4][2]
     assert "snapshot_path: validation/inventory.json\n" in output.getvalue()
 
 
@@ -126,6 +132,13 @@ def test_rendered_context_does_not_leak_credentials(monkeypatch):
     )
     session = DeviceSession(object(), lambda: None)
 
+    class FakeStore:
+        def __init__(self, _path):
+            pass
+
+        def contexts(self):
+            return ()
+
     class FakeResolver:
         def __init__(self, _store):
             self.last_events = ()
@@ -136,6 +149,7 @@ def test_rendered_context_does_not_leak_credentials(monkeypatch):
     monkeypatch.setattr(
         live_validate_inventory, "DeviceInventoryResolver", FakeResolver
     )
+    monkeypatch.setattr(live_validate_inventory, "JsonInventoryStore", FakeStore)
     monkeypatch.setattr(
         live_validate_inventory, "connect_device", lambda *_args: session
     )
@@ -153,6 +167,26 @@ def test_rendered_context_does_not_leak_credentials(monkeypatch):
     assert "top-secret-password" not in rendered
     assert "private-key-value" not in rendered
     assert "reconciliation_events: []" in rendered
+
+
+def test_inventory_state_output_is_explicit_for_before_after_comparison():
+    output = StringIO()
+
+    live_validate_inventory._print_inventory_state("Before", (), output=output)
+    live_validate_inventory._print_inventory_state(
+        "After", (_context(),), output=output
+    )
+
+    rendered = output.getvalue()
+    assert (
+        "Before inventory state:\ntotal_stored_device_count: 0\ndevices: []\n"
+        in rendered
+    )
+    assert "After inventory state:\ntotal_stored_device_count: 1\n" in rendered
+    assert "  device_id: device-123\n" in rendered
+    assert "  serial_number: SERIAL123\n" in rendered
+    assert "  management_ip: 192.0.2.10\n" in rendered
+    assert "  observed_management_ips: 192.0.2.9, 192.0.2.10\n" in rendered
 
 
 def test_main_prompts_only_for_password_and_uses_no_platform(monkeypatch):
