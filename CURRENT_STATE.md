@@ -76,7 +76,10 @@ under the ignored `data/live_validation/` path. Each run prints identity-focused
 before/after inventory state, reconciliation events, and total device counts so
 operators can validate management-IP moves, replacement/IP reassignment, and
 later serial discovery through the existing store and resolver. The harness has
-deterministic unit coverage, but has not yet been run against live equipment.
+been used successfully for live inventory identification validation. The new
+`management_ip_changed`, replacement/reassignment, and
+`serial_number_discovered` reconciliation scenarios have deterministic coverage
+but have not yet been live validated.
 
 `scripts/live_validate_inventory_batch.py` provides sequential live validation
 from Excel rows containing `management_ip`, `username`, and `password`. It uses
@@ -218,9 +221,11 @@ Current major implementation areas:
   families, override/ambiguity handling, same-serial IP moves, same-IP serial
   replacement, safe same-IP serial enrichment, conservative no-serial handling,
   failure retention, and secret exclusion.
-- The inventory live-validation harness has deterministic delegation, display,
-  reconciliation-event, and credential-exclusion coverage; live-equipment
-  validation has not yet been performed.
+- The inventory live-validation harness has been used successfully for live
+  identification validation and has deterministic delegation, display,
+  reconciliation-event, and credential-exclusion coverage. The new management-IP
+  move, replacement/reassignment, and serial-discovery scenarios have not yet
+  been live validated.
 - Interface capability tests cover all five platform identifiers with deterministic fake sessions.
 - Interface capability has now been live validated on Cisco IOS, Cisco IOS-XE, Cisco IOS-XR, Huawei VRP, and Ubiquiti EdgeSwitch.
 - VLAN observation has deterministic parser and command-selection coverage for
